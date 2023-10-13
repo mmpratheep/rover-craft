@@ -1,4 +1,6 @@
 mod store;
+mod test;
+mod hash;
 
 use warp::Filter;
 use serde::{Serialize, Deserialize};

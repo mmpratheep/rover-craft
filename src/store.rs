@@ -1,16 +1,24 @@
-use parking_lot::RwLock;
-use std::sync::Arc;
-use crate::ProbeRequest;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde::{Serialize, Deserialize};
+
+use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
+
+use crate::ProbeRequest;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct Probe {
     probe_id: String,
     event_id: String,
     event_date_time: u128,
     data: String,
+}
+
+#[derive(Hash)]
+pub(crate) struct ProbeId {
+    pub id: String
 }
 
 type Probes = HashMap<String, Probe>;
