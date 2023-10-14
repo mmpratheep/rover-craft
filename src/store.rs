@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,15 +11,16 @@ use crate::ProbeRequest;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Probe {
-    probe_id: String,
-    event_id: String,
-    event_date_time: u128,
-    data: String,
+    pub(crate) probe_id: String,
+    pub(crate) event_id: String,
+    pub(crate) event_date_time: u128,
+    pub(crate) data: String,
 }
 
-#[derive(Hash)]
-pub(crate) struct ProbeId {
-    pub id: String
+impl Hash for Probe {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.probe_id.hash(state);
+    }
 }
 
 type Probes = HashMap<String, Probe>;
@@ -43,8 +45,6 @@ impl Probe {
             data: String::from("Dummy data"),
         }
     }
-
-
 }
 
 #[derive(Clone)]
