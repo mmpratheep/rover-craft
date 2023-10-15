@@ -29,7 +29,7 @@ impl Probe {
             probe_id: probe_request.get_probe_id().to_string(),
             event_id: probe_request.get_event_id().to_string(),
             event_date_time,
-            data: probe_request.get_event_id().to_string(),
+            data: probe_request.get_data().to_string(),
         }
     }
 

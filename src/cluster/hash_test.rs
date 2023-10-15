@@ -1,6 +1,5 @@
-
-use crate::probe::probe::Probe;
 use crate::cluster::hash::hash;
+use crate::probe::probe::Probe;
 
 #[test]
 fn run() {
