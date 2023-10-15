@@ -1,9 +1,8 @@
-
 use warp::Filter;
+
 use crate::http::handlers::{get_probe, post_json, update_probe};
 use crate::store;
 
-#[tokio::main]
 pub async fn setup_controller(port : u16) {
     let store = store::store::Store::new();
     let store_filter = warp::any().map(move || store.clone());
@@ -25,7 +24,7 @@ pub async fn setup_controller(port : u16) {
 
     let routes = update_probe_route.or(get_probe_route);
 
-    warp::serve(routes)
+    return warp::serve(routes)
         .run(([127, 0, 0, 1], port))
-        .await;
+        .await
 }
