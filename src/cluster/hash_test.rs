@@ -1,6 +1,5 @@
-use std::hash::{Hash};
-use crate::hash::hash;
-use crate::store::{Probe};
+use crate::cluster::hash::hash;
+use crate::probe::probe::Probe;
 
 #[test]
 fn run() {
