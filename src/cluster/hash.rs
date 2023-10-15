@@ -1,5 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+
 use crate::probe::probe::Probe;
 
 pub fn hash(probe: Probe) -> u64 {

@@ -4,8 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use http::probe_request::ProbeRequest;
-use crate::http;
 
+use crate::http;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -28,14 +28,6 @@ impl Probe {
         &self.probe_id
     }
 
-    pub fn get_event_id(&self) -> &String {
-        &self.event_id
-    }
-
-    pub fn get_data(&self) -> &String {
-        &self.data
-    }
-
     pub(crate) fn create_probe(probe_request: ProbeRequest ) -> Probe {
         let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis();
         Probe {
@@ -43,16 +35,6 @@ impl Probe {
             event_id: probe_request.get_event_id().to_string(),
             event_date_time,
             data: probe_request.get_data().to_string(),
-        }
-    }
-
-    pub(crate) fn dummy_probe(probe_id: String) -> Probe {
-        let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis();
-        Probe {
-            probe_id,
-            event_id: String::from("1"),
-            event_date_time,
-            data: String::from("Dummy data"),
         }
     }
 }
