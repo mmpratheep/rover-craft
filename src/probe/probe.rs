@@ -1,16 +1,15 @@
-use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use crate::ProbeRequest;
+use http::probe_request::ProbeRequest;
+use crate::http;
+
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct Probe {
+pub struct Probe {
     pub(crate) probe_id: String,
     pub(crate) event_id: String,
     pub(crate) event_date_time: u128,
@@ -23,16 +22,14 @@ impl Hash for Probe {
     }
 }
 
-type Probes = HashMap<String, Probe>;
-
 impl Probe {
     pub(crate) fn create_probe(probe_request: ProbeRequest ) -> Probe {
         let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis();
         Probe {
-            probe_id: probe_request.probe_id,
-            event_id: probe_request.event_id,
+            probe_id: probe_request.get_probe_id().to_string(),
+            event_id: probe_request.get_event_id().to_string(),
             event_date_time,
-            data: probe_request.data,
+            data: probe_request.get_event_id().to_string(),
         }
     }
 
@@ -43,19 +40,6 @@ impl Probe {
             event_id: String::from("1"),
             event_date_time,
             data: String::from("Dummy data"),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct Store {
-    probes: Arc<RwLock<Probes>>,
-}
-
-impl Store {
-    pub(crate) fn new() -> Self {
-        Store {
-            probes: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
