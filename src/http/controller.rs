@@ -1,10 +1,9 @@
 use warp::Filter;
 
 use crate::http::handlers::{get_probe, post_json, update_probe};
-use crate::store;
+use crate::store::memory_store::MemoryStore;
 
-pub async fn setup_controller(port : u16) {
-    let store = store::store::Store::new();
+pub async fn setup_controller(port : u16, store : MemoryStore) {
     let store_filter = warp::any().map(move || store.clone());
 
     let update_probe_route = warp::put()

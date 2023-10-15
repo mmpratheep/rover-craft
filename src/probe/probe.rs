@@ -23,6 +23,19 @@ impl Hash for Probe {
 }
 
 impl Probe {
+
+    pub fn get_probe_id(&self) -> &String {
+        &self.probe_id
+    }
+
+    pub fn get_event_id(&self) -> &String {
+        &self.event_id
+    }
+
+    pub fn get_data(&self) -> &String {
+        &self.data
+    }
+
     pub(crate) fn create_probe(probe_request: ProbeRequest ) -> Probe {
         let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis();
         Probe {

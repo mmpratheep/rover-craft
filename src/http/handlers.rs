@@ -1,4 +1,8 @@
-use warp::Filter;
+use warp::{Filter, Rejection};
+use warp::http::StatusCode;
+use warp::reply::{Json, WithStatus};
+use crate::http::error;
+use crate::http::error::Error;
 
 use crate::http::probe_request::ProbeRequest;
 use crate::probe::probe::Probe;
@@ -9,18 +13,18 @@ pub fn post_json() -> impl Filter<Extract=(ProbeRequest,), Error=warp::Rejection
 }
 
 pub async fn update_probe(
-    probe_id: String,
+    _: String,
     probe_request: ProbeRequest,
     store: Store
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let probe = Probe::create_probe(probe_request);
-    Ok(warp::reply::json(&probe))
+    let response = store.save_probe(&Probe::create_probe(probe_request));
+    Ok(warp::reply::json(&response.unwrap()))
 }
 
 pub async fn get_probe(
     probe_id: String,
     store: Store
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let probe = Probe::dummy_probe(probe_id);
-    Ok(warp::reply::json(&probe))
+    let response = store.get_probe(&probe_id);
+    Ok(warp::reply::json(&response.unwrap()))
 }
