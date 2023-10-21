@@ -9,11 +9,11 @@ pub fn post_json() -> impl Filter<Extract=(ProbeRequest,), Error=warp::Rejection
 }
 
 pub async fn update_probe(
-    _: String,
+    probe_id: String,
     probe_request: ProbeRequest,
     store: MemoryStore
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let response = store.save_probe(&Probe::create_probe(probe_request));
+    let response = store.save_probe(&Probe::create_probe(probe_id, probe_request));
     Ok(warp::reply::json(&response.unwrap()))
 }
 

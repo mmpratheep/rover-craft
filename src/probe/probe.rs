@@ -28,10 +28,10 @@ impl Probe {
         &self.probe_id
     }
 
-    pub(crate) fn create_probe(probe_request: ProbeRequest ) -> Probe {
+    pub(crate) fn create_probe(probe_id: String, probe_request: ProbeRequest ) -> Probe {
         let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis();
         Probe {
-            probe_id: probe_request.get_probe_id().to_string(),
+            probe_id,
             event_id: probe_request.get_event_id().to_string(),
             event_date_time,
             data: probe_request.get_data().to_string(),
