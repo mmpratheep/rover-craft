@@ -6,7 +6,6 @@ use crate::store::memory_store::MemoryStore;
 
 pub async fn setup_controller(port : u16, store : Arc<MemoryStore>) {
     let store_filter = warp::any().map(move || store.clone());
-    //todo why clone?
 
     let update_probe_route = warp::put()
         .and(warp::path("probe"))
@@ -26,7 +25,7 @@ pub async fn setup_controller(port : u16, store : Arc<MemoryStore>) {
     let routes = update_probe_route
         .or(get_probe_route);
 
-    return warp::serve(routes)
+     return warp::serve(routes)
         .run(([127, 0, 0, 1], port))
-        .await
+         .await
 }

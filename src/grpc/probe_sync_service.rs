@@ -27,7 +27,7 @@ impl ProbeSync for ProbeSyncService {
                 Ok(Response::new(probe.to_read_probe_response()))
             }
             None => {
-                Err(Status::new(tonic::Code::NotFound, "Invalid vote provided"))
+                Err(Status::new(tonic::Code::NotFound, "No probe found"))
             }
         }
     }
