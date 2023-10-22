@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use http::probe_request::ProbeRequest;
 
 use crate::http;
+use crate::probe_sync::{ReadProbeResponse, WriteProbeRequest};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -35,6 +36,24 @@ impl Probe {
             event_id: probe_request.get_event_id().to_string(),
             event_date_time,
             data: probe_request.get_data().to_string(),
+        }
+    }
+
+    pub(crate) fn create_probe_from_write_probe_request(probe_request: WriteProbeRequest) -> Probe {
+        Probe {
+            probe_id: probe_request.probe_id,
+            event_id: probe_request.event_id,
+            event_date_time: probe_request.event_date_time,
+            data: probe_request.data,
+        }
+    }
+
+    pub(crate) fn to_read_probe_response(self) -> ReadProbeResponse{
+        ReadProbeResponse {
+            probe_id: self.probe_id,
+            data: self.data,
+            event_date_time: self.event_date_time,
+            event_id: self.event_id
         }
     }
 }
