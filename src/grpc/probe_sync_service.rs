@@ -18,7 +18,6 @@ pub struct ProbeSyncService {
 
 #[tonic::async_trait]
 impl ProbeSync for ProbeSyncService {
-
     async fn read_probe(&self, request: Request<ReadProbeRequest>) -> Result<Response<ReadProbeResponse>, Status> {
         let read_probe_req = request.into_inner();
 

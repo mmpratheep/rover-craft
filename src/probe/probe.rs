@@ -30,7 +30,9 @@ impl Probe {
     }
 
     pub(crate) fn create_probe(probe_id: String, probe_request: ProbeRequest ) -> Probe {
-        let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis() as u64;
+        let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH)
+            .expect("Unable to form event_date_time Epoch.")
+            .as_millis() as u64;
         Probe {
             probe_id,
             event_id: probe_request.get_event_id().to_string(),

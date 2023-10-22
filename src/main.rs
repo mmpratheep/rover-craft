@@ -5,14 +5,11 @@ use crate::grpc::probe_sync_service::probe_sync::probe_sync_server::ProbeSyncSer
 use crate::grpc::probe_sync_service::ProbeSyncService;
 use crate::http::controller::setup_controller;
 
-
 mod probe;
 mod store;
-
 mod cluster;
 mod http;
 mod grpc;
-
 
 #[tokio::main]
 async fn main() {
