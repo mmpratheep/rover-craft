@@ -1,5 +1,5 @@
 syntax = "proto3";
-package probe;
+package probe_sync;
 
 service ProbeSync {
   rpc ReadProbe (ReadProbeRequest) returns (ReadProbeResponse);
