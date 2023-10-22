@@ -5,17 +5,15 @@ use probe::Probe;
 
 use crate::probe::probe;
 
-type Probes = DashMap<String, Probe>;
-
-#[derive(Clone)]
+#[derive(Clone,Debug, Default)]
 pub struct MemoryStore  {
-    probes: Arc<Probes>,
+    probes: DashMap<String, Probe>,
 }
 
 impl MemoryStore {
     pub fn new() -> Self {
         MemoryStore {
-            probes: Arc::new(DashMap::new()),
+            probes: DashMap::new(),
         }
     }
 

@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::store::memory_store::MemoryStore;
 use tonic::transport::Server as GrpcServer;
 
@@ -20,14 +21,14 @@ pub mod probe_sync {
 
 #[tokio::main]
 async fn main() {
-    let store = MemoryStore::new();
+    let store = Arc::new(MemoryStore::new());
     // http::controller::setup_controller(9000, Arc::clone(&store))
     //     .await;
 
     let address = "[::1]:8080".parse().unwrap();
-    // let voting_service = ProbeSyncService{ store };
+    let voting_service = ProbeSyncService{ store: Arc::clone(&store) };
 
-    let grpc_server = GrpcServer::builder().add_service(ProbeSyncServer::new(store))
+    let grpc_server = GrpcServer::builder().add_service(ProbeSyncServer::new(voting_service))
         .serve(address)
         .await;
 
@@ -36,18 +37,20 @@ async fn main() {
 }
 
 
-// #[derive(Debug, Default)]
-// pub struct ProbeSyncService {
-//     store: MemoryStore,
-// }
+#[derive(Debug, Default)]
+pub struct ProbeSyncService {
+    store: Arc<MemoryStore>,
+}
+
 
 #[tonic::async_trait]
-impl ProbeSync for MemoryStore {
+impl ProbeSync for ProbeSyncService {
+
     async fn read_probe(&self, request: Request<ReadProbeRequest>) -> Result<Response<ReadProbeResponse>, Status> {
         let read_probe_req = request.into_inner();
 
 
-        match self.get_probe(&read_probe_req.probe_id) {
+        match self.store.get_probe(&read_probe_req.probe_id) {
             Some(probe) => {
                 Ok(Response::new(probe.to_read_probe_response()))
             }
@@ -60,7 +63,7 @@ impl ProbeSync for MemoryStore {
     async fn write_probe(&self, request: Request<WriteProbeRequest>) -> Result<Response<WriteProbeResponse>, Status> {
         let write_probe_req = request.into_inner();
 
-        self.save_probe(&Probe::create_probe_from_write_probe_request(write_probe_req));
+        self.store.save_probe(&Probe::create_probe_from_write_probe_request(write_probe_req));
         //todo check whether the above statement will always pass without any error, if so,then handle that scenario
         Ok(Response::new(WriteProbeResponse { confirmation: true }))
     }
