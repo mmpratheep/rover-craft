@@ -4,9 +4,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use http::probe_request::ProbeRequest;
+use crate::grpc::probe_sync_service::probe_sync::{ReadProbeResponse, WriteProbeRequest};
 
 use crate::http;
-use crate::probe_sync::{ReadProbeResponse, WriteProbeRequest};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]

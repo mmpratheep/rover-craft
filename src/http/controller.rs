@@ -23,7 +23,8 @@ pub async fn setup_controller(port : u16, store : Arc<MemoryStore>) {
         .and(store_filter.clone())
         .and_then(get_probe);
 
-    let routes = update_probe_route.or(get_probe_route);
+    let routes = update_probe_route
+        .or(get_probe_route);
 
     return warp::serve(routes)
         .run(([127, 0, 0, 1], port))

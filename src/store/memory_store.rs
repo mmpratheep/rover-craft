@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use dashmap::DashMap;
 
 use probe::Probe;
