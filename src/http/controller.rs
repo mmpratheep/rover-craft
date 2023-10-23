@@ -1,9 +1,10 @@
-use warp::Filter;
+use std::sync::Arc;
+use warp::{Filter};
 
 use crate::http::handlers::{get_probe, post_json, update_probe};
 use crate::store::memory_store::MemoryStore;
 
-pub async fn setup_controller(port : u16, store : MemoryStore) {
+pub async fn setup_controller(port : u16, store : Arc<MemoryStore>) {
     let store_filter = warp::any().map(move || store.clone());
 
     let update_probe_route = warp::put()
@@ -21,9 +22,10 @@ pub async fn setup_controller(port : u16, store : MemoryStore) {
         .and(store_filter.clone())
         .and_then(get_probe);
 
-    let routes = update_probe_route.or(get_probe_route);
+    let routes = update_probe_route
+        .or(get_probe_route);
 
-    return warp::serve(routes)
+     return warp::serve(routes)
         .run(([127, 0, 0, 1], port))
-        .await
+         .await
 }

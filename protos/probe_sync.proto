@@ -1,5 +1,5 @@
 syntax = "proto3";
-package probe;
+package probe_sync;
 
 service ProbeSync {
   rpc ReadProbe (ReadProbeRequest) returns (ReadProbeResponse);
@@ -7,18 +7,18 @@ service ProbeSync {
 }
 
 message ReadProbeRequest {
-  string probeId = 1;
+  string probe_id = 1;
 }
 
 message ReadProbeResponse {
-  string probeId = 1;
+  string probe_id = 1;
   string event_id = 2;
   uint64 event_date_time = 3 ;
   string data = 4;
 }
 
 message WriteProbeRequest {
-  string probeId = 1;
+  string probe_id = 1;
   string event_id = 2;
   uint64 event_date_time = 3 ;
   string data = 4;
