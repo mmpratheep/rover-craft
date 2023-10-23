@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use http::probe_request::ProbeRequest;
-use crate::grpc::probe_sync_service::probe_sync::{ReadProbeResponse, WriteProbeRequest};
+use crate::grpc::service::probe_sync::{ReadProbeResponse, WriteProbeRequest};
 
 use crate::http;
 

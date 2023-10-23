@@ -1,14 +1,9 @@
 use std::sync::Arc;
-use probe_sync::{ReadProbeRequest, ReadProbeResponse, WriteProbeRequest, WriteProbeResponse,
-                 probe_sync_server::{ProbeSync}};
 use tonic::{Request, Response, Status};
+use crate::grpc::service::probe_sync::{ReadProbeRequest, ReadProbeResponse, WriteProbeRequest, WriteProbeResponse};
+use crate::grpc::service::probe_sync::probe_sync_server::ProbeSync;
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
-
-
-pub mod probe_sync {
-    tonic::include_proto!("probe_sync");
-}
 
 #[derive(Debug, Default)]
 pub struct ProbeSyncService {

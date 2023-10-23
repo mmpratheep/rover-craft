@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use crate::store::memory_store::MemoryStore;
 use tonic::transport::Server as GrpcServer;
-use crate::grpc::probe_sync_service::probe_sync::probe_sync_server::ProbeSyncServer;
 use crate::grpc::probe_sync_service::ProbeSyncService;
+use crate::grpc::service::probe_sync::probe_sync_server::ProbeSyncServer;
 use crate::http::controller::setup_controller;
 
 mod probe;
