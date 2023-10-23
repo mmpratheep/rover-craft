@@ -12,7 +12,7 @@ use crate::http;
 pub struct Probe {
     pub(crate) probe_id: String,
     pub(crate) event_id: String,
-    pub(crate) event_date_time: u128,
+    pub(crate) event_date_time: u64,
     pub(crate) data: String,
 }
 
@@ -28,10 +28,10 @@ impl Probe {
         &self.probe_id
     }
 
-    pub(crate) fn create_probe(probe_request: ProbeRequest ) -> Probe {
-        let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis();
+    pub(crate) fn create_probe(probe_id: String, probe_request: ProbeRequest ) -> Probe {
+        let event_date_time = SystemTime::now().duration_since(UNIX_EPOCH).expect("").as_millis() as u64;
         Probe {
-            probe_id: probe_request.get_probe_id().to_string(),
+            probe_id,
             event_id: probe_request.get_event_id().to_string(),
             event_date_time,
             data: probe_request.get_data().to_string(),
