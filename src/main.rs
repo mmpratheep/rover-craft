@@ -17,7 +17,7 @@ async fn main() {
     let http_server = tokio::spawn(setup_controller(9000, store.clone()));
 
     let address = "[::1]:9001".parse().unwrap();
-    let probe_sync_service = ProbeSyncService{ store: Arc::clone(&store) };
+    let probe_sync_service = ProbeSyncService{ store: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder().add_service(ProbeSyncServer::new(probe_sync_service))
         .serve(address));
