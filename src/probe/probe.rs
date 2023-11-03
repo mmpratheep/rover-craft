@@ -41,7 +41,15 @@ impl Probe {
         }
     }
 
-    pub(crate) fn create_probe_from_write_probe_request(probe_request: WriteProbeRequest) -> Probe {
+    pub(crate) fn from_write_probe_request(probe_request: WriteProbeRequest) -> Probe {
+        Probe {
+            probe_id: probe_request.probe_id,
+            event_id: probe_request.event_id,
+            event_date_time: probe_request.event_date_time,
+            data: probe_request.data,
+        }
+    }
+    pub(crate) fn from_read_probe_response(probe_request: ReadProbeResponse) -> Probe {
         Probe {
             probe_id: probe_request.probe_id,
             event_id: probe_request.event_id,
@@ -52,6 +60,14 @@ impl Probe {
 
     pub(crate) fn to_read_probe_response(self) -> ReadProbeResponse{
         ReadProbeResponse {
+            probe_id: self.probe_id,
+            data: self.data,
+            event_date_time: self.event_date_time,
+            event_id: self.event_id
+        }
+    }
+    pub(crate) fn to_write_probe_request(self) -> WriteProbeRequest{
+        WriteProbeRequest {
             probe_id: self.probe_id,
             data: self.data,
             event_date_time: self.event_date_time,

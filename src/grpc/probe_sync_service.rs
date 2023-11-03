@@ -29,7 +29,7 @@ impl ProbeSync for ProbeSyncService {
     async fn write_probe(&self, request: Request<WriteProbeRequest>) -> Result<Response<WriteProbeResponse>, Status> {
         let write_probe_req = request.into_inner();
 
-        self.store.save_probe(&Probe::create_probe_from_write_probe_request(write_probe_req));
+        self.store.save_probe(&Probe::from_write_probe_request(write_probe_req));
         //todo check whether the above statement will always pass without any error, if so,then handle that scenario
         Ok(Response::new(WriteProbeResponse { confirmation: true }))
     }
