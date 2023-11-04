@@ -24,6 +24,8 @@ mod tests {
             event_date_time: 1699082509235,
             data: "some random data".to_string(),
         }).await;
+        let response = result.unwrap().into_inner();
+        assert_eq!(true, response.confirmation);
     }
 
     #[test]
