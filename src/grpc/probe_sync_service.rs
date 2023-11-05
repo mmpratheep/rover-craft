@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
-use crate::grpc::service::probe_sync::{ReadProbeRequest, ReadProbeResponse, WriteProbeRequest, WriteProbeResponse};
+use crate::grpc::service::probe_sync::{ReadProbeRequest, ProbeData, WriteProbeResponse};
 use crate::grpc::service::probe_sync::probe_sync_server::ProbeSync;
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
@@ -13,12 +13,12 @@ pub struct ProbeSyncService {
 
 #[tonic::async_trait]
 impl ProbeSync for ProbeSyncService {
-    async fn read_probe(&self, request: Request<ReadProbeRequest>) -> Result<Response<ReadProbeResponse>, Status> {
+    async fn read_probe(&self, request: Request<ReadProbeRequest>) -> Result<Response<ProbeData>, Status> {
         let read_probe_req = request.into_inner();
 
         match self.store.get_probe(&read_probe_req.probe_id) {
             Some(probe) => {
-                Ok(Response::new(probe.to_read_probe_response()))
+                Ok(Response::new(probe.to_probe_data()))
             }
             None => {
                 Err(Status::new(tonic::Code::NotFound, "No probe found"))
@@ -26,7 +26,7 @@ impl ProbeSync for ProbeSyncService {
         }
     }
 
-    async fn write_probe(&self, request: Request<WriteProbeRequest>) -> Result<Response<WriteProbeResponse>, Status> {
+    async fn write_probe(&self, request: Request<ProbeData>) -> Result<Response<WriteProbeResponse>, Status> {
         let write_probe_req = request.into_inner();
 
         self.store.save_probe(&Probe::from_write_probe_request(write_probe_req));

@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use http::probe_request::ProbeRequest;
-use crate::grpc::service::probe_sync::{ReadProbeResponse, WriteProbeRequest};
+use crate::grpc::service::probe_sync::{ProbeData};
 
 use crate::http;
 
@@ -41,7 +41,7 @@ impl Probe {
         }
     }
 
-    pub(crate) fn from_write_probe_request(probe_request: WriteProbeRequest) -> Probe {
+    pub(crate) fn from_write_probe_request(probe_request: ProbeData) -> Probe {
         Probe {
             probe_id: probe_request.probe_id,
             event_id: probe_request.event_id,
@@ -49,7 +49,7 @@ impl Probe {
             data: probe_request.data,
         }
     }
-    pub(crate) fn from_read_probe_response(probe_request: ReadProbeResponse) -> Probe {
+    pub(crate) fn from_read_probe_response(probe_request: ProbeData) -> Probe {
         Probe {
             probe_id: probe_request.probe_id,
             event_id: probe_request.event_id,
@@ -58,16 +58,8 @@ impl Probe {
         }
     }
 
-    pub(crate) fn to_read_probe_response(self) -> ReadProbeResponse{
-        ReadProbeResponse {
-            probe_id: self.probe_id,
-            data: self.data,
-            event_date_time: self.event_date_time,
-            event_id: self.event_id
-        }
-    }
-    pub(crate) fn to_write_probe_request(self) -> WriteProbeRequest{
-        WriteProbeRequest {
+    pub(crate) fn to_probe_data(self) -> ProbeData{
+        ProbeData {
             probe_id: self.probe_id,
             data: self.data,
             event_date_time: self.event_date_time,

@@ -5,7 +5,7 @@ use tonic::transport::{Channel};
 use warp::hyper::client::connect::Connect;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
-use crate::grpc::service::probe_sync::{ReadProbeRequest, ReadProbeResponse, WriteProbeResponse};
+use crate::grpc::service::probe_sync::{ReadProbeRequest, ProbeData, WriteProbeResponse};
 use crate::probe::probe::Probe;
 
 pub struct Node {
@@ -34,7 +34,7 @@ impl Node {
         })
     }
 
-    pub(crate) async fn read_probe(mut self, probe_id: String) -> Result<Response<ReadProbeResponse>, Status> {
+    pub(crate) async fn read_probe(mut self, probe_id: String) -> Result<Response<ProbeData>, Status> {
         let request = tonic::Request::new(ReadProbeRequest {
             probe_id
         });
@@ -42,7 +42,7 @@ impl Node {
     }
 
     pub(crate) async fn write_probe(mut self, probe: Probe) -> Result<Response<WriteProbeResponse>, Status> {
-        let request = tonic::Request::new(probe.to_write_probe_request());
+        let request = tonic::Request::new(probe.to_probe_data());
         self.connection.write_probe(request).await
         //todo handle retry logic
     }

@@ -6,19 +6,7 @@ pub struct ReadProbeRequest {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ReadProbeResponse {
-    #[prost(string, tag = "1")]
-    pub probe_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub event_id: ::prost::alloc::string::String,
-    #[prost(uint64, tag = "3")]
-    pub event_date_time: u64,
-    #[prost(string, tag = "4")]
-    pub data: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct WriteProbeRequest {
+pub struct ProbeData {
     #[prost(string, tag = "1")]
     pub probe_id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -33,6 +21,14 @@ pub struct WriteProbeRequest {
 pub struct WriteProbeResponse {
     #[prost(bool, tag = "1")]
     pub confirmation: bool,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Partition {
+    #[prost(string, tag = "1")]
+    pub probe_id: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub probe_data: ::core::option::Option<ProbeData>,
 }
 /// Generated client implementations.
 pub mod probe_sync_client {
@@ -122,10 +118,7 @@ pub mod probe_sync_client {
         pub async fn read_probe(
             &mut self,
             request: impl tonic::IntoRequest<super::ReadProbeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ReadProbeResponse>,
-            tonic::Status,
-        > {
+        ) -> std::result::Result<tonic::Response<super::ProbeData>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -146,7 +139,7 @@ pub mod probe_sync_client {
         }
         pub async fn write_probe(
             &mut self,
-            request: impl tonic::IntoRequest<super::WriteProbeRequest>,
+            request: impl tonic::IntoRequest<super::ProbeData>,
         ) -> std::result::Result<
             tonic::Response<super::WriteProbeResponse>,
             tonic::Status,
@@ -181,13 +174,10 @@ pub mod probe_sync_server {
         async fn read_probe(
             &self,
             request: tonic::Request<super::ReadProbeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ReadProbeResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ProbeData>, tonic::Status>;
         async fn write_probe(
             &self,
-            request: tonic::Request<super::WriteProbeRequest>,
+            request: tonic::Request<super::ProbeData>,
         ) -> std::result::Result<
             tonic::Response<super::WriteProbeResponse>,
             tonic::Status,
@@ -279,7 +269,7 @@ pub mod probe_sync_server {
                         T: ProbeSync,
                     > tonic::server::UnaryService<super::ReadProbeRequest>
                     for ReadProbeSvc<T> {
-                        type Response = super::ReadProbeResponse;
+                        type Response = super::ProbeData;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -321,9 +311,7 @@ pub mod probe_sync_server {
                 "/probe_sync.ProbeSync/WriteProbe" => {
                     #[allow(non_camel_case_types)]
                     struct WriteProbeSvc<T: ProbeSync>(pub Arc<T>);
-                    impl<
-                        T: ProbeSync,
-                    > tonic::server::UnaryService<super::WriteProbeRequest>
+                    impl<T: ProbeSync> tonic::server::UnaryService<super::ProbeData>
                     for WriteProbeSvc<T> {
                         type Response = super::WriteProbeResponse;
                         type Future = BoxFuture<
@@ -332,7 +320,7 @@ pub mod probe_sync_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::WriteProbeRequest>,
+                            request: tonic::Request<super::ProbeData>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
