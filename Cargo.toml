@@ -13,6 +13,10 @@ log = "0.4.20"
 dashmap = "5.5.3"
 tonic = "0.10.2"
 prost = "0.12.1"
+tower = "0.4.13"
 
 [build-dependencies]
 tonic-build = "0.10.2"
+
+[dev-dependencies]
+tokio = { version = "1.33.0", features = ["full"] }
