@@ -23,12 +23,12 @@ impl PartitionManager {
 
     fn get_leader(&mut self) -> Option<&Node> {
         // health_check_and_update_status(&self.nodes);
+        //todo decide whether current node is alive or dead
         self.nodes.sort_by_key(| it | it.address.clone());
         self.nodes.get(0)
     }
 
     fn get_partition_assignment_from_leader(){
-
     }
 
     fn re_balance_partition() {}
@@ -56,9 +56,6 @@ impl PartitionManager {
             }
         }
     }
-
-
-
 
     pub async fn upsert_value(&self, probe: Probe) -> Option<Probe> {
         //todo WIP..
