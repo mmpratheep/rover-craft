@@ -39,7 +39,7 @@ impl Node {
     }
 
     async fn get_channel(address: &String) -> Result<ProbeSyncClient<Channel>, Error> {
-        let time_out = 1000;
+        let time_out = 500;
         let channel = match Channel::from_shared(address.clone()) {
             Ok(endpoint) => endpoint,
             Err(err) => {

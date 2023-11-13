@@ -8,6 +8,7 @@ service HealthCheck {
 
 service Partition{
   rpc GetPartitionsFromLeader (Empty) returns (Partitions);
+  rpc DistributePartitions (Partitions) returns (Empty);
 }
 
 message HealthCheckRequest {

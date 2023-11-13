@@ -33,7 +33,7 @@ impl PartitionService {
         self.leader_nodes = leader_nodes;
         self.follower_nodes = follower_nodes;
     }
-    fn remove_node(nodes: &mut Vec<Node>, node: &Node) {
+    fn remove_node(nodes: &mut Vec<Arc<Node>>, node: &Node) {
         for i in 0..nodes.len() {
             if node.address == nodes.get(i).unwrap().address {
                 nodes.remove(i);
@@ -52,7 +52,7 @@ impl PartitionService {
 #[tonic::async_trait]
 impl Partition for PartitionService {
     async fn get_partitions_from_leader(&self, request: Request<Empty>) -> Result<Response<Partitions>, Status> {
-        todo!()
+        todo!("handle logic for node recovery as well")
     }
 }
 

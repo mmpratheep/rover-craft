@@ -19,7 +19,13 @@ impl PartitionManager {
     // }
 
 
-    fn publish_partition_re_balance() {}
+    fn publish_partition_re_balance() {
+        todo!()
+    }
+
+    fn assign_delta_data_backup(){
+        todo!()
+    }
 
     fn get_leader(&mut self) -> Option<&Node> {
         // health_check_and_update_status(&self.nodes);
@@ -29,9 +35,12 @@ impl PartitionManager {
     }
 
     fn get_partition_assignment_from_leader(){
+        todo!()
     }
 
-    fn re_balance_partition() {}
+    fn re_balance_partition() {
+        todo!()
+    }
 
     pub async fn get_probe(&self, probe_id: String) -> Option<Probe>{
         //todo clone
