@@ -22,14 +22,6 @@ pub struct WriteProbeResponse {
     #[prost(bool, tag = "1")]
     pub confirmation: bool,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Partition {
-    #[prost(string, tag = "1")]
-    pub probe_id: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "2")]
-    pub probe_data: ::core::option::Option<ProbeData>,
-}
 /// Generated client implementations.
 pub mod probe_sync_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
