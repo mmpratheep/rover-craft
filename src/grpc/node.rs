@@ -2,7 +2,6 @@ use std::time::Duration;
 use tonic::{Code, Response, Status};
 use tonic::codegen::tokio_stream::StreamExt;
 use tonic::transport::{Channel, Error};
-use warp::http::StatusCode;
 use warp::hyper::client::connect::Connect;
 use crate::cluster::network_node::NetworkNode;
 use crate::grpc::node_status::NodeStatus;
@@ -11,7 +10,8 @@ use crate::grpc::service::probe_sync::{ProbeProto, ReadProbeRequest, WriteProbeR
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
+//todo remove this clone
 pub struct Node {
     pub address: String,
     probe_store: NetworkNode,
