@@ -1,0 +1,30 @@
+syntax = "proto3";
+package cluster;
+
+
+service HealthCheck {
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+service Partition{
+  rpc GetPartitionsFromLeader (Empty) returns (Partitions);
+}
+
+message HealthCheckRequest {
+  bool ping = 1;
+}
+
+message HealthCheckResponse {
+  bool pong = 1;
+}
+
+message Partitions{
+  Nodes leaderNodes = 1;
+  Nodes followerNodes = 2;
+}
+
+message Nodes{
+  repeated string ip_address = 1;
+}
+
+message Empty{}

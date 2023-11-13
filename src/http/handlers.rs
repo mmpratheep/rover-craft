@@ -16,8 +16,10 @@ pub async fn update_probe(
     probe_request: ProbeRequest,
     store: Arc<MemoryStore>,
 ) -> Result<impl Reply, Rejection> {
-    let response = store.save_probe(&Probe::create_probe(probe_id, probe_request));
-    Ok(json(&response.unwrap()))
+    let probe = &Probe::create_probe(probe_id, probe_request);
+    store.save_probe(probe);
+
+    Ok(json(&probe))
 }
 
 pub async fn get_probe(

@@ -2,15 +2,20 @@ syntax = "proto3";
 package probe_sync;
 
 service ProbeSync {
-  rpc ReadProbe (ReadProbeRequest) returns (ProbeData);
-  rpc WriteProbe (ProbeData) returns (WriteProbeResponse);
+  rpc ReadProbe (ReadProbeRequest) returns (ProbeProto);
+  rpc WriteProbe (ProbeProto) returns (WriteProbeResponse);
+  rpc GetPartitionData (PartitionRequest) returns (ProbePartition);
 }
 
 message ReadProbeRequest {
   string probe_id = 1;
 }
 
-message ProbeData {
+message PartitionRequest{
+  string partition_id = 1;
+}
+
+message ProbeProto {
   string probe_id = 1;
   string event_id = 2;
   uint64 event_date_time = 3 ;
@@ -19,4 +24,8 @@ message ProbeData {
 
 message WriteProbeResponse {
   bool confirmation = 1;
+}
+
+message ProbePartition{
+  repeated ProbeProto probe_array = 1;
 }

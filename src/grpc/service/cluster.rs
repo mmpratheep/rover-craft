@@ -1,49 +1,42 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ReadProbeRequest {
-    #[prost(string, tag = "1")]
-    pub probe_id: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PartitionRequest {
-    #[prost(string, tag = "1")]
-    pub partition_id: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProbeProto {
-    #[prost(string, tag = "1")]
-    pub probe_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub event_id: ::prost::alloc::string::String,
-    #[prost(uint64, tag = "3")]
-    pub event_date_time: u64,
-    #[prost(string, tag = "4")]
-    pub data: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct WriteProbeResponse {
+pub struct HealthCheckRequest {
     #[prost(bool, tag = "1")]
-    pub confirmation: bool,
+    pub ping: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProbePartition {
-    #[prost(message, repeated, tag = "1")]
-    pub probe_array: ::prost::alloc::vec::Vec<ProbeProto>,
+pub struct HealthCheckResponse {
+    #[prost(bool, tag = "1")]
+    pub pong: bool,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Partitions {
+    #[prost(message, optional, tag = "1")]
+    pub leader_nodes: ::core::option::Option<Nodes>,
+    #[prost(message, optional, tag = "2")]
+    pub follower_nodes: ::core::option::Option<Nodes>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Nodes {
+    #[prost(string, repeated, tag = "1")]
+    pub ip_address: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Empty {}
 /// Generated client implementations.
-pub mod probe_sync_client {
+pub mod health_check_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
-    pub struct ProbeSyncClient<T> {
+    pub struct HealthCheckClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl ProbeSyncClient<tonic::transport::Channel> {
+    impl HealthCheckClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -54,7 +47,7 @@ pub mod probe_sync_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> ProbeSyncClient<T>
+    impl<T> HealthCheckClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -72,7 +65,7 @@ pub mod probe_sync_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> ProbeSyncClient<InterceptedService<T, F>>
+        ) -> HealthCheckClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -86,7 +79,7 @@ pub mod probe_sync_client {
                 http::Request<tonic::body::BoxBody>,
             >>::Error: Into<StdError> + Send + Sync,
         {
-            ProbeSyncClient::new(InterceptedService::new(inner, interceptor))
+            HealthCheckClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -119,33 +112,11 @@ pub mod probe_sync_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        pub async fn read_probe(
+        pub async fn health_check(
             &mut self,
-            request: impl tonic::IntoRequest<super::ReadProbeRequest>,
-        ) -> std::result::Result<tonic::Response<super::ProbeProto>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/probe_sync.ProbeSync/ReadProbe",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("probe_sync.ProbeSync", "ReadProbe"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn write_probe(
-            &mut self,
-            request: impl tonic::IntoRequest<super::ProbeProto>,
+            request: impl tonic::IntoRequest<super::HealthCheckRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::WriteProbeResponse>,
+            tonic::Response<super::HealthCheckResponse>,
             tonic::Status,
         > {
             self.inner
@@ -159,17 +130,104 @@ pub mod probe_sync_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/probe_sync.ProbeSync/WriteProbe",
+                "/cluster.HealthCheck/HealthCheck",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("probe_sync.ProbeSync", "WriteProbe"));
+                .insert(GrpcMethod::new("cluster.HealthCheck", "HealthCheck"));
             self.inner.unary(req, path, codec).await
         }
-        pub async fn get_partition_data(
+    }
+}
+/// Generated client implementations.
+pub mod partition_client {
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    #[derive(Debug, Clone)]
+    pub struct PartitionClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl PartitionClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> PartitionClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> PartitionClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
+        {
+            PartitionClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
+        pub async fn get_partitions_from_leader(
             &mut self,
-            request: impl tonic::IntoRequest<super::PartitionRequest>,
-        ) -> std::result::Result<tonic::Response<super::ProbePartition>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::Partitions>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -181,40 +239,32 @@ pub mod probe_sync_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/probe_sync.ProbeSync/GetPartitionData",
+                "/cluster.Partition/GetPartitionsFromLeader",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("probe_sync.ProbeSync", "GetPartitionData"));
+                .insert(GrpcMethod::new("cluster.Partition", "GetPartitionsFromLeader"));
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod probe_sync_server {
+pub mod health_check_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with ProbeSyncServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with HealthCheckServer.
     #[async_trait]
-    pub trait ProbeSync: Send + Sync + 'static {
-        async fn read_probe(
+    pub trait HealthCheck: Send + Sync + 'static {
+        async fn health_check(
             &self,
-            request: tonic::Request<super::ReadProbeRequest>,
-        ) -> std::result::Result<tonic::Response<super::ProbeProto>, tonic::Status>;
-        async fn write_probe(
-            &self,
-            request: tonic::Request<super::ProbeProto>,
+            request: tonic::Request<super::HealthCheckRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::WriteProbeResponse>,
+            tonic::Response<super::HealthCheckResponse>,
             tonic::Status,
         >;
-        async fn get_partition_data(
-            &self,
-            request: tonic::Request<super::PartitionRequest>,
-        ) -> std::result::Result<tonic::Response<super::ProbePartition>, tonic::Status>;
     }
     #[derive(Debug)]
-    pub struct ProbeSyncServer<T: ProbeSync> {
+    pub struct HealthCheckServer<T: HealthCheck> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
@@ -222,7 +272,7 @@ pub mod probe_sync_server {
         max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: ProbeSync> ProbeSyncServer<T> {
+    impl<T: HealthCheck> HealthCheckServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -274,9 +324,9 @@ pub mod probe_sync_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for ProbeSyncServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for HealthCheckServer<T>
     where
-        T: ProbeSync,
+        T: HealthCheck,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -292,25 +342,25 @@ pub mod probe_sync_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/probe_sync.ProbeSync/ReadProbe" => {
+                "/cluster.HealthCheck/HealthCheck" => {
                     #[allow(non_camel_case_types)]
-                    struct ReadProbeSvc<T: ProbeSync>(pub Arc<T>);
+                    struct HealthCheckSvc<T: HealthCheck>(pub Arc<T>);
                     impl<
-                        T: ProbeSync,
-                    > tonic::server::UnaryService<super::ReadProbeRequest>
-                    for ReadProbeSvc<T> {
-                        type Response = super::ProbeProto;
+                        T: HealthCheck,
+                    > tonic::server::UnaryService<super::HealthCheckRequest>
+                    for HealthCheckSvc<T> {
+                        type Response = super::HealthCheckResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::ReadProbeRequest>,
+                            request: tonic::Request<super::HealthCheckRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ProbeSync>::read_probe(&inner, request).await
+                                <T as HealthCheck>::health_check(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -322,97 +372,7 @@ pub mod probe_sync_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = ReadProbeSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/probe_sync.ProbeSync/WriteProbe" => {
-                    #[allow(non_camel_case_types)]
-                    struct WriteProbeSvc<T: ProbeSync>(pub Arc<T>);
-                    impl<T: ProbeSync> tonic::server::UnaryService<super::ProbeProto>
-                    for WriteProbeSvc<T> {
-                        type Response = super::WriteProbeResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::ProbeProto>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as ProbeSync>::write_probe(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = WriteProbeSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/probe_sync.ProbeSync/GetPartitionData" => {
-                    #[allow(non_camel_case_types)]
-                    struct GetPartitionDataSvc<T: ProbeSync>(pub Arc<T>);
-                    impl<
-                        T: ProbeSync,
-                    > tonic::server::UnaryService<super::PartitionRequest>
-                    for GetPartitionDataSvc<T> {
-                        type Response = super::ProbePartition;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::PartitionRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as ProbeSync>::get_partition_data(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = GetPartitionDataSvc(inner);
+                        let method = HealthCheckSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -443,7 +403,7 @@ pub mod probe_sync_server {
             }
         }
     }
-    impl<T: ProbeSync> Clone for ProbeSyncServer<T> {
+    impl<T: HealthCheck> Clone for HealthCheckServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -455,7 +415,7 @@ pub mod probe_sync_server {
             }
         }
     }
-    impl<T: ProbeSync> Clone for _Inner<T> {
+    impl<T: HealthCheck> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(Arc::clone(&self.0))
         }
@@ -465,7 +425,187 @@ pub mod probe_sync_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: ProbeSync> tonic::server::NamedService for ProbeSyncServer<T> {
-        const NAME: &'static str = "probe_sync.ProbeSync";
+    impl<T: HealthCheck> tonic::server::NamedService for HealthCheckServer<T> {
+        const NAME: &'static str = "cluster.HealthCheck";
+    }
+}
+/// Generated server implementations.
+pub mod partition_server {
+    #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
+    use tonic::codegen::*;
+    /// Generated trait containing gRPC methods that should be implemented for use with PartitionServer.
+    #[async_trait]
+    pub trait Partition: Send + Sync + 'static {
+        async fn get_partitions_from_leader(
+            &self,
+            request: tonic::Request<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::Partitions>, tonic::Status>;
+    }
+    #[derive(Debug)]
+    pub struct PartitionServer<T: Partition> {
+        inner: _Inner<T>,
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
+        max_decoding_message_size: Option<usize>,
+        max_encoding_message_size: Option<usize>,
+    }
+    struct _Inner<T>(Arc<T>);
+    impl<T: Partition> PartitionServer<T> {
+        pub fn new(inner: T) -> Self {
+            Self::from_arc(Arc::new(inner))
+        }
+        pub fn from_arc(inner: Arc<T>) -> Self {
+            let inner = _Inner(inner);
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+                max_decoding_message_size: None,
+                max_encoding_message_size: None,
+            }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.max_decoding_message_size = Some(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.max_encoding_message_size = Some(limit);
+            self
+        }
+    }
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for PartitionServer<T>
+    where
+        T: Partition,
+        B: Body + Send + 'static,
+        B::Error: Into<StdError> + Send + 'static,
+    {
+        type Response = http::Response<tonic::body::BoxBody>;
+        type Error = std::convert::Infallible;
+        type Future = BoxFuture<Self::Response, Self::Error>;
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<std::result::Result<(), Self::Error>> {
+            Poll::Ready(Ok(()))
+        }
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
+            let inner = self.inner.clone();
+            match req.uri().path() {
+                "/cluster.Partition/GetPartitionsFromLeader" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetPartitionsFromLeaderSvc<T: Partition>(pub Arc<T>);
+                    impl<T: Partition> tonic::server::UnaryService<super::Empty>
+                    for GetPartitionsFromLeaderSvc<T> {
+                        type Response = super::Partitions;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::Empty>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as Partition>::get_partitions_from_leader(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetPartitionsFromLeaderSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
+            }
+        }
+    }
+    impl<T: Partition> Clone for PartitionServer<T> {
+        fn clone(&self) -> Self {
+            let inner = self.inner.clone();
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+                max_decoding_message_size: self.max_decoding_message_size,
+                max_encoding_message_size: self.max_encoding_message_size,
+            }
+        }
+    }
+    impl<T: Partition> Clone for _Inner<T> {
+        fn clone(&self) -> Self {
+            Self(Arc::clone(&self.0))
+        }
+    }
+    impl<T: std::fmt::Debug> std::fmt::Debug for _Inner<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{:?}", self.0)
+        }
+    }
+    impl<T: Partition> tonic::server::NamedService for PartitionServer<T> {
+        const NAME: &'static str = "cluster.Partition";
     }
 }
