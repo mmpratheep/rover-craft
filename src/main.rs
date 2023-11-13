@@ -1,9 +1,16 @@
+use std::collections::HashMap;
+use std::env::Args;
+use std::fs::File;
+use std::io::Write;
+use std::{env, process};
 use std::sync::Arc;
-use crate::store::memory_store::MemoryStore;
+
 use tonic::transport::Server as GrpcServer;
+
 use crate::grpc::probe_sync_service::ProbeSyncService;
 use crate::grpc::service::probe_sync::probe_sync_server::ProbeSyncServer;
 use crate::http::controller::setup_controller;
+use crate::store::memory_store::MemoryStore;
 
 mod probe;
 mod store;
@@ -11,19 +18,56 @@ mod cluster;
 mod http;
 mod grpc;
 
+static LISTEN_PEER_URLS: &str = "listen-peer-urls";
+static LISTEN_CLIENT_URLS: &str = "listen-client-urls";
+static INITIAL_CLUSTER: &str = "initial-cluster";
+
 #[tokio::main]
 async fn main() {
-    let store = Arc::new(MemoryStore::new());
-    let http_server = tokio::spawn(setup_controller(9000, store.clone()));
+    write_pid();
+    let parsed_argument = parse_args(env::args());
+    let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).expect("Missing listen-client-urls"));
+    let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).expect("Missing listen-peer-urls"));
+    let address = format!("[::1]:{}", peer_port).parse().unwrap();
 
-    let address = "[::1]:9001".parse().unwrap();
+    let store = Arc::new(MemoryStore::new());
+    let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
+
+
     let probe_sync_service = ProbeSyncService{ store: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
         .serve(address));
 
+    println!("Started listener on {}", listen_port);
+    println!("Started peer listener on {}", peer_port);
+
     tokio::try_join!(grpc_server, http_server);
 }
 
+fn write_pid() {
+    let process_id= format!("{}", process::id());
+    println!("Current process Id is {}", &process_id);
+    let mut file= File::options().create(true).write(true).append(false).open("./rovercraft.pid").unwrap();
+    file.write_all(&process_id.as_bytes())
+        .unwrap();
+}
 
+fn parse_args(args: Args) -> HashMap<String, String> {
+    let mut map : HashMap<String,String> = HashMap::new();
+
+    let arguments: Vec<String> = args.skip(1).collect();
+    for index in (0..arguments.len()).step_by(2) {
+        let name = &arguments[index].replace("--", "");
+        let value = &arguments[index + 1];
+        map.insert(name.to_string(), value.to_string());
+    }
+
+    map
+}
+
+fn find_port(url: &String) -> u16 {
+    let index= url.rfind(":").expect("Incorrect url configured");
+    url[index + 1..].parse().unwrap()
+}
