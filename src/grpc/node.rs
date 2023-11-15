@@ -13,18 +13,25 @@ use crate::store::memory_store::MemoryStore;
 #[derive(Clone, Debug)]
 //todo remove this clone
 pub struct Node {
-    pub address: String,
+    pub host_name: String,
     probe_store: NetworkNode,
     pub node_status: NodeStatus,
 }
 
 impl Node {
+    pub fn make_node_down(mut self) {
+        self.node_status = NodeStatus::Dead
+    }
+
+    pub fn is_current_node(self) -> bool {
+        hostname::get().unwrap().eq_ignore_ascii_case(&self.host_name)
+    }
 
     pub(crate) async fn new(node_ip: String, current_node_ip: String) -> Result<Self, Error> {
         if node_ip == current_node_ip {
             return Ok(
                 Self {
-                    address: node_ip,
+                    host_name: node_ip,
                     probe_store: NetworkNode::LocalStore(MemoryStore::new()),
                     node_status: NodeStatus::AliveServing,
                 }
@@ -32,7 +39,7 @@ impl Node {
         }
         let client = Self::get_channel(&node_ip).await?;
         Ok(Self {
-            address: node_ip,
+            host_name: node_ip,
             probe_store: NetworkNode::RemoteStore(client),
             node_status: NodeStatus::AliveServing,
         })
