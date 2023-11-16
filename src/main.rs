@@ -40,6 +40,14 @@ async fn main() {
         .add_service(ProbeSyncServer::new(probe_sync_service))
         .serve(address));
 
+    println!(
+        "
+   / __ \\____ _   _____  ___________________ _/ __/ /_
+  / /_/ / __ \\ | / / _ \\/ ___/ ___/ ___/ __ `/ /_/ __/
+ / _, _/ /_/ / |/ /  __/ /  / /__/ /  / /_/ / __/ /_
+/_/ |_|\\____/|___/\\___/_/   \\___/_/   \\__,_/_/  \\__/
+"
+    );
     println!("Started listener on {}", listen_port);
     println!("Started peer listener on {}", peer_port);
 
