@@ -1,5 +1,5 @@
 [package]
-name = "rover-api"
+name = "rovercraft"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,0 +1,23 @@
+x-node:
+  &default-node
+  build: ../node
+  command: "rovercraft --listen-peer-urls http://0.0.0.0:9001 --listen-client-urls http://0.0.0.0:9000 --initial-cluster n1=n1:9000,n2=n2:9000,n3=n3:9000"
+  networks:
+    - test
+
+services:
+  n1:
+    << : *default-node
+    container_name: test-n1
+    hostname: n1
+  n2:
+    << : *default-node
+    container_name: test-n2
+    hostname: n2
+  n3:
+    << : *default-node
+    container_name: test-n3
+    hostname: n3
+
+networks:
+  test:
