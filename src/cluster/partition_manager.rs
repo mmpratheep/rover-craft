@@ -35,14 +35,14 @@ impl PartitionManager {
         let (leader_node,follower_node) = self.partition_service.get_partition_nodes(&probe_id);
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing -> then read from that
         //todo else read from the follower partition
-        let result = leader_node.unwrap().node.read_probe_from_store(&probe_id).await;
+        let result = leader_node.node.read_probe_from_store(&probe_id).await;
         return match result {
             Ok(probe) => {
                 probe
             }
             Err(err) => {
                 error!("Exception {}",err);
-                let fallback_result = follower_node.unwrap().read_probe_from_store(&probe_id).await;
+                let fallback_result = follower_node.read_probe_from_store(&probe_id).await;
                 match fallback_result {
                     Ok(fallback_probe) => {
                         return fallback_probe
@@ -63,8 +63,8 @@ impl PartitionManager {
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing & AliveNotServing then write
         //todo else read from the follower partition
         let (leader_node,follower_node) = self.partition_service.get_partition_nodes(&probe.probe_id);
-        let result = leader_node.unwrap().write_probe_to_store(&probe).await;
-        let res = follower_node.unwrap().write_probe_to_store(&probe).await;
+        let result = leader_node.write_probe_to_store(&probe).await;
+        let res = follower_node.write_probe_to_store(&probe).await;
         return match result {
             Ok(_probe_response) => {
                 Some(probe)

@@ -1,11 +1,11 @@
-use std::sync::{Arc, LockResult, RwLock};
+use std::sync::{Arc, RwLock};
 use log::error;
 use tonic::{Request, Response, Status};
 use crate::cluster::hash::hash;
 use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
 use crate::grpc::node_status::NodeStatus;
-use crate::grpc::nodes::Nodes;
+use crate::grpc::nodes::NodeManager;
 use crate::grpc::service::cluster::{AliveNotServingRequest, Empty};
 use crate::grpc::service::cluster::partition_server::Partition;
 use crate::store::memory_store::MemoryStore;
@@ -17,7 +17,7 @@ pub(crate) struct PartitionService {
     leader_nodes: RwLock<Vec<LeaderNode>>,
     follower_nodes: RwLock<Vec<Arc<Node>>>,
     partition_size: usize,
-    nodes: Nodes
+    nodes: NodeManager,
 }
 
 impl PartitionService {
@@ -40,26 +40,31 @@ impl PartitionService {
         self.follower_nodes = RwLock::new(follower_nodes);
     }
 
-    // fn remove_node(nodes: &mut Vec<Arc<Node>>, node: &Node) {
-    //     for i in 0..nodes.len() {
-    //         if node.host_name == nodes.get(i).unwrap().host_name {
-    //             nodes.remove(i);
-    //             return;
-    //         }
-    //     }
-    // }
+    pub fn get_partition_nodes(&self, probe_id: &String) -> (LeaderNode, Arc<Node>) {
+        let leaders;
+        let followers;{
+            let hash = hash(probe_id.clone());
+            let partition_id = hash % self.partition_size;
+            leaders = self.leader_nodes.read().unwrap();
+            followers = self.follower_nodes.read().unwrap();
+            let leader_ref = leaders.get(partition_id).expect("No leader to get");
+            let follower_ref = followers.get(partition_id).expect("No follower to get");
 
-    pub fn get_partition_nodes(&self, probe_id: &String) -> (Option<&LeaderNode>, Option<&Arc<Node>>) {
-        let hash = hash(probe_id.clone());
-        let partition_id = hash % self.partition_size;
-        (self.leader_nodes.read().unwrap().get(partition_id), self.follower_nodes.read().unwrap().get(partition_id))
+            // Release the locks here, ensuring that the references are valid
+            (leader_ref.clone(), follower_ref.clone())
+        }
     }
 
     pub(crate) fn balance_partitions_and_write_delta_data(&mut self) {
+        let leader_nodes = self.leader_nodes.read().unwrap();
+
+        let follower_nodes = self.follower_nodes.read().unwrap();
+
         //todo make sure it's happening only once
-        for i in 0..self.leader_nodes.read().unwrap().len() {
-            let leader_node = self.leader_nodes.read().unwrap().get(i).unwrap();
-            let follower_node = self.follower_nodes.read().unwrap().get(i).unwrap();
+        for i in 0..leader_nodes.len() {
+            let leader_node = leader_nodes.get(i).unwrap();
+            let follower_node = follower_nodes.get(i).unwrap();
+
             if leader_node.node.node_status == NodeStatus::Dead {
                 let mut delta_data: Option<MemoryStore> = None;
                 if follower_node.is_current_node() {
@@ -92,21 +97,21 @@ impl Partition for PartitionService {
         let node_host_name = req_data.host_name;
         for i in req_data.partitions {
             match self.leader_nodes.write() {
-                Ok(l_nodes) => {
+                Ok(mut l_nodes) => {
                     match self.follower_nodes.write() {
-                        Ok(f_nodes) => {
+                        Ok(mut f_nodes) => {
                             let index = i as usize;
                             f_nodes[index] = l_nodes[index].node.clone();
                             l_nodes[index].node = self.nodes.get_node(node_host_name.clone()).unwrap();
                             //todo check whether it handles properly for the second node assignment
                         }
                         Err(err) => {
-                            error!("Failed to get write lock for followers {}",erorr)
+                            error!("Failed to get write lock for followers {}",err)
                         }
                     }
                 }
-                Err(error) => {
-                    error!("Failed to get write lock for leaders {}",error)
+                Err(err) => {
+                    error!("Failed to get write lock for leaders {}",err)
                 }
             }
         };

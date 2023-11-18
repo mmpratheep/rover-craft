@@ -3,11 +3,11 @@ use log::error;
 use crate::grpc::node::Node;
 
 #[derive(Debug, Default)]
-pub struct Nodes {
+pub struct NodeManager {
     nodes: Vec<Arc<Node>>,
 }
 
-impl Nodes {
+impl NodeManager {
     pub async fn initialise_nodes(node_hosts: Vec<String>) -> Self {
         let mut nodes: Vec<Arc<Node>> = Vec::with_capacity(node_hosts.len());
         for node_host in node_hosts {
@@ -19,25 +19,23 @@ impl Nodes {
             );
         }
         nodes.sort_by_key(|it| it.host_name.clone());
-        Nodes {
+        NodeManager {
             nodes
         }
     }
 
     fn sort_nodes(&mut self) {
-        self.nodes.sort_by_key(|it| it.host_name);
+        self.nodes.sort_by(|a,b| a.host_name.cmp(&b.host_name));
     }
 
-    pub async fn get_node(&self, node_host: String) -> Arc<Node> {
+    pub fn get_node(&self, node_host: String) -> Option<Arc<Node>> {
         return match self.nodes.iter().find(|&node| node.host_name == node_host) {
             Some(node) => {
-                Arc::clone(node)
+                Some(Arc::clone(node))
             }
             None => {
                 error!("Unable to get existing node, So creating new one");
-                Arc::new(Node::new(node_host)
-                    .await
-                    .expect("Unable to connect to node host"))
+                None
             }
         };
     }
