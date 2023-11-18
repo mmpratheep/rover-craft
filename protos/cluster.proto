@@ -8,7 +8,7 @@ service HealthCheck {
 
 service Partition{
   rpc MakeNodeAliveNotServing (AliveNotServingRequest) returns (Empty);
-  rpc MakeNodeAliveServing (Empty) returns (Empty);
+  rpc MakeNodeAliveServing (AliveAndServingRequest) returns (Empty);
 }
 
 message HealthCheckRequest {
@@ -22,6 +22,10 @@ message HealthCheckResponse {
 message AliveNotServingRequest{
   string host_name = 1;
   repeated uint32 partitions = 2;
+}
+
+message AliveAndServingRequest{
+  string host_name = 1;
 }
 
 message Empty{}

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use log::error;
 use crate::grpc::node::Node;
+use crate::grpc::node_status::NodeStatus;
 
 #[derive(Debug, Default)]
 pub struct NodeManager {
@@ -25,11 +26,28 @@ impl NodeManager {
     }
 
     fn sort_nodes(&mut self) {
-        self.nodes.sort_by(|a,b| a.host_name.cmp(&b.host_name));
+        self.nodes.sort_by(|a, b| a.host_name.cmp(&b.host_name));
+    }
+
+    pub fn make_node_alive_and_serving(&self, node_host: &String) {
+        self.change_node_state(node_host, NodeStatus::AliveServing);
+    }
+
+    pub fn make_node_alive_and_not_serving(&self, node_host: &String) {
+        self.change_node_state(node_host, NodeStatus::AliveNotServing);
+    }
+
+    fn change_node_state(&self, node_host: &String, status: NodeStatus) {
+        self.get_single_node(node_host)
+            .map(|it| {
+                let mut node = it.clone();
+                Arc::make_mut(&mut node).node_status = status;
+            }
+            );
     }
 
     pub fn get_node(&self, node_host: String) -> Option<Arc<Node>> {
-        return match self.nodes.iter().find(|&node| node.host_name == node_host) {
+        return match self.get_single_node(&node_host) {
             Some(node) => {
                 Some(Arc::clone(node))
             }
@@ -38,5 +56,12 @@ impl NodeManager {
                 None
             }
         };
+    }
+
+    fn get_single_node(&self, node_host: &String) -> Option<&Arc<Node>> {
+        self.nodes.iter()
+            .find(|&node|
+                node.host_name == *node_host
+            )
     }
 }

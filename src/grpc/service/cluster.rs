@@ -20,6 +20,12 @@ pub struct AliveNotServingRequest {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AliveAndServingRequest {
+    #[prost(string, tag = "1")]
+    pub host_name: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Empty {}
 /// Generated client implementations.
 pub mod health_check_client {
@@ -242,7 +248,7 @@ pub mod partition_client {
         }
         pub async fn make_node_alive_serving(
             &mut self,
-            request: impl tonic::IntoRequest<super::Empty>,
+            request: impl tonic::IntoRequest<super::AliveAndServingRequest>,
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status> {
             self.inner
                 .ready()
@@ -458,7 +464,7 @@ pub mod partition_server {
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status>;
         async fn make_node_alive_serving(
             &self,
-            request: tonic::Request<super::Empty>,
+            request: tonic::Request<super::AliveAndServingRequest>,
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status>;
     }
     #[derive(Debug)]
@@ -593,7 +599,9 @@ pub mod partition_server {
                 "/cluster.Partition/MakeNodeAliveServing" => {
                     #[allow(non_camel_case_types)]
                     struct MakeNodeAliveServingSvc<T: Partition>(pub Arc<T>);
-                    impl<T: Partition> tonic::server::UnaryService<super::Empty>
+                    impl<
+                        T: Partition,
+                    > tonic::server::UnaryService<super::AliveAndServingRequest>
                     for MakeNodeAliveServingSvc<T> {
                         type Response = super::Empty;
                         type Future = BoxFuture<
@@ -602,7 +610,7 @@ pub mod partition_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::Empty>,
+                            request: tonic::Request<super::AliveAndServingRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {

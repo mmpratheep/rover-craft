@@ -6,7 +6,7 @@ use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::nodes::NodeManager;
-use crate::grpc::service::cluster::{AliveNotServingRequest, Empty};
+use crate::grpc::service::cluster::{AliveAndServingRequest, AliveNotServingRequest, Empty};
 use crate::grpc::service::cluster::partition_server::Partition;
 use crate::store::memory_store::MemoryStore;
 
@@ -42,7 +42,8 @@ impl PartitionService {
 
     pub fn get_partition_nodes(&self, probe_id: &String) -> (LeaderNode, Arc<Node>) {
         let leaders;
-        let followers;{
+        let followers;
+        {
             let hash = hash(probe_id.clone());
             let partition_id = hash % self.partition_size;
             leaders = self.leader_nodes.read().unwrap();
@@ -95,6 +96,7 @@ impl Partition for PartitionService {
         //todo
         let req_data = request.into_inner();
         let node_host_name = req_data.host_name;
+        self.nodes.make_node_alive_and_not_serving(&node_host_name);
         for i in req_data.partitions {
             match self.leader_nodes.write() {
                 Ok(mut l_nodes) => {
@@ -118,7 +120,7 @@ impl Partition for PartitionService {
         Ok(Response::new(Empty {}))
     }
 
-    async fn make_node_alive_serving(&self, request: Request<Empty>) -> Result<Response<Empty>, Status> {
+    async fn make_node_alive_serving(&self, request: Request<AliveAndServingRequest>) -> Result<Response<Empty>, Status> {
         todo!()
     }
 }
