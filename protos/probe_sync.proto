@@ -10,11 +10,13 @@ service ProbeSync {
 message ReadProbeRequest {
   string probe_id = 1;
   uint64 partition_id = 2;
+  bool is_leader = 3;
 }
 
 message WriteProbeRequest{
   ProbeProto probe = 1;
   uint64 partition_id = 2;
+  bool is_leader = 3;
 }
 
 message PartitionRequest{

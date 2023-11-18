@@ -5,6 +5,8 @@ pub struct ReadProbeRequest {
     pub probe_id: ::prost::alloc::string::String,
     #[prost(uint64, tag = "2")]
     pub partition_id: u64,
+    #[prost(bool, tag = "3")]
+    pub is_leader: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -13,6 +15,8 @@ pub struct WriteProbeRequest {
     pub probe: ::core::option::Option<ProbeProto>,
     #[prost(uint64, tag = "2")]
     pub partition_id: u64,
+    #[prost(bool, tag = "3")]
+    pub is_leader: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

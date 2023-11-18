@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use log::error;
-use tonic::Status;
 use crate::cluster::partition_service::PartitionService;
 use crate::grpc::node::Node;
 use crate::probe::probe::Probe;
@@ -12,16 +11,15 @@ pub struct PartitionManager {
 }
 
 impl PartitionManager {
-
     pub async fn read_probe_from_partition(&self, partition_id: usize, probe_id: String) -> Option<Probe> {
         self.partition_service
             .get_leader_partition(partition_id)
-            .node.read_probe_from_store(partition_id, &probe_id).await.unwrap()
+            .node.read_probe_from_store(partition_id, true, &probe_id).await.unwrap()
     }
     pub async fn write_probe_to_partition(&self, partition_id: usize, probe: Probe) {
         self.partition_service
             .get_leader_partition(partition_id)
-            .node.write_probe_to_store(partition_id, &probe).await.expect("internal probe write failed");
+            .node.write_probe_to_store(partition_id, true, &probe).await.expect("internal probe write failed");
     }
 
     pub fn make_node_down(&mut self, node: Node) {
@@ -41,7 +39,7 @@ impl PartitionManager {
             .get_partition_nodes(&probe_id);
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing -> then read from that
         //todo else read from the follower partition
-        let result = leader_node.node.read_probe_from_store(partition_id,&probe_id).await;
+        let result = leader_node.node.read_probe_from_store(partition_id, true, &probe_id).await;
         return match result {
             Ok(probe) => {
                 probe
@@ -50,7 +48,7 @@ impl PartitionManager {
                 error!("Exception {}",err);
 
                 //todo explicitly tell the follower node to rebalance the partition by sending the dead node ip, then make the request to the follower to get the probe from partition
-                let fallback_result = follower_node.read_probe_from_store(partition_id,&probe_id).await;
+                let fallback_result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
                 match fallback_result {
                     Ok(fallback_probe) => {
                         return fallback_probe;
@@ -72,7 +70,7 @@ impl PartitionManager {
         //todo else read from the follower partition
         let (leader_node, follower_node, partition_id) = self.partition_service.get_partition_nodes(&probe.probe_id);
         let result = leader_node.write_probe_to_store(partition_id, &probe).await;
-        let res = follower_node.write_probe_to_store(partition_id, &probe).await;
+        let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
         return match result {
             Ok(_probe_response) => {
                 Some(probe)

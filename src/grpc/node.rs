@@ -72,26 +72,26 @@ impl Node {
         Ok(ProbeSyncClient::new(channel))
     }
 
-    pub async fn read_probe_from_store(&self, partition_id: usize, probe_id: &String) -> Result<Option<Probe>, Status> {
+    pub async fn read_probe_from_store(&self, partition_id: usize, is_leader: bool, probe_id: &String) -> Result<Option<Probe>, Status> {
         return match &self.probe_store {
             NetworkNode::LocalStore(store) => {
                 Ok(store.get_probe(&probe_id))
             }
             NetworkNode::RemoteStore(remote_store) => {
-                let response = Self::read_remote_store(remote_store.clone(), partition_id, probe_id).await;
+                let response = Self::read_remote_store(remote_store.clone(), partition_id, is_leader, probe_id).await;
                 Self::get_probe_from_response(response)
             }
         };
     }
 
-    pub async fn write_probe_to_store(&self, partition_id: usize, probe: &Probe) -> Result<(), Status> {
+    pub async fn write_probe_to_store(&self, partition_id: usize, is_leader: bool, probe: &Probe) -> Result<(), Status> {
         return match &self.probe_store {
             NetworkNode::LocalStore(store) => {
                 store.save_probe(&probe);
                 Ok(())
             }
             NetworkNode::RemoteStore(remote_store) => {
-                let response = Self::write_remote_store(remote_store.clone(), partition_id, probe).await;
+                let response = Self::write_remote_store(remote_store.clone(), partition_id, is_leader, probe).await;
                 match response {
                     Ok(_val) => {
                         Ok(())
@@ -127,19 +127,21 @@ impl Node {
         }
     }
 
-    pub(crate) async fn read_remote_store(mut channel: ProbeSyncClient<Channel>, partition_id: usize, probe_id: &String) -> Result<Response<ProbeProto>, Status> {
+    pub(crate) async fn read_remote_store(mut channel: ProbeSyncClient<Channel>, partition_id: usize, is_leader: bool, probe_id: &String) -> Result<Response<ProbeProto>, Status> {
         let request = tonic::Request::new(ReadProbeRequest {
             partition_id: partition_id as u64,
             probe_id: probe_id.to_string(),
+            is_leader,
         });
         channel.read_probe(request).await
     }
 
-    pub(crate) async fn write_remote_store(mut channel: ProbeSyncClient<Channel>, partition_id: usize, probe: &Probe) -> Result<Response<WriteProbeResponse>, Status> {
+    pub(crate) async fn write_remote_store(mut channel: ProbeSyncClient<Channel>, partition_id: usize, is_leader: bool, probe: &Probe) -> Result<Response<WriteProbeResponse>, Status> {
         //todo try to remote the clone
         let request = tonic::Request::new(WriteProbeRequest {
             partition_id: partition_id as u64,
             probe: Some(probe.clone().to_probe_data()),
+            is_leader,
         });
         channel.write_probe(request).await
         //todo handle retry logic
