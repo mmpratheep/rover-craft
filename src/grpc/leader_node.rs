@@ -20,6 +20,10 @@ impl LeaderNode {
         }
         self.node.write_probe_to_store(probe).await
     }
+
+    pub fn remove_delta_data(&mut self) {
+        self.delta_data = None;
+    }
 }
 
 
