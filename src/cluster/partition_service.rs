@@ -31,11 +31,19 @@ impl PartitionService {
         }
     }
 
-    pub fn get_leader_partition(&self, partition_id: usize) -> LeaderNode {
+    pub fn get_leader_partition(&self, partition_id: usize) -> Arc<Node> {
         let leaders;
         {
             leaders = self.leader_nodes.read().unwrap();
             let leader_ref = leaders.get(partition_id).expect("No leader to get");
+            return leader_ref.node.clone();
+        }
+    }
+    pub fn get_follower_partition(&self, partition_id: usize) -> Arc<Node> {
+        let followers;
+        {
+            followers = self.follower_nodes.read().unwrap();
+            let leader_ref = followers.get(partition_id).expect("No leader to get");
             return leader_ref.clone();
         }
     }

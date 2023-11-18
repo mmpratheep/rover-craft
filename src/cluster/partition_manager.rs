@@ -11,15 +11,18 @@ pub struct PartitionManager {
 }
 
 impl PartitionManager {
-    pub async fn read_probe_from_partition(&self, partition_id: usize, probe_id: String) -> Option<Probe> {
-        self.partition_service
-            .get_leader_partition(partition_id)
-            .node.read_probe_from_store(partition_id, true, &probe_id).await.unwrap()
+    pub async fn read_probe_from_partition(&self, partition_id: usize, is_leader: bool, probe_id: String) -> Option<Probe> {
+        let partition = self.get_partition(partition_id, is_leader);
+        partition
+            .read_probe_from_store(partition_id, true, &probe_id).await.unwrap()
     }
-    pub async fn write_probe_to_partition(&self, partition_id: usize, probe: Probe) {
-        self.partition_service
-            .get_leader_partition(partition_id)
-            .node.write_probe_to_store(partition_id, true, &probe).await.expect("internal probe write failed");
+    pub async fn write_probe_to_partition(&self, partition_id: usize, is_leader: bool, probe: Probe) {
+        let partition = self.get_partition(partition_id, is_leader);
+        partition
+            .write_probe_to_store(partition_id, true, &probe).await.expect("internal probe write failed");
+    }
+    fn get_partition(&self, partition_id: usize, is_leader: bool) -> Arc<Node> {
+        if is_leader { self.partition_service.get_leader_partition(partition_id) } else { self.partition_service.get_follower_partition(partition_id) }
     }
 
     pub fn make_node_down(&mut self, node: Node) {
