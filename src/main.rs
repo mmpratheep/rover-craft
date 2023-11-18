@@ -6,11 +6,13 @@ use std::{env, process};
 use std::sync::Arc;
 
 use tonic::transport::Server as GrpcServer;
+use crate::cluster::partition_manager::PartitionManager;
+use crate::cluster::partition_service::PartitionService;
+use crate::grpc::nodes::NodeManager;
 
 use crate::grpc::probe_sync_service::ProbeSyncService;
 use crate::grpc::service::probe_sync::probe_sync_server::ProbeSyncServer;
 use crate::http::controller::setup_controller;
-use crate::store::memory_store::MemoryStore;
 
 mod probe;
 mod store;
@@ -30,11 +32,14 @@ async fn main() {
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).expect("Missing listen-peer-urls"));
     let address = format!("[::1]:{}", peer_port).parse().unwrap();
 
-    let store = Arc::new(MemoryStore::new());
+    let node_manager = NodeManager::initialise_nodes(vec!["hello".to_string()]).await;
+    let store = Arc::new(PartitionManager{
+        partition_service: PartitionService::new(node_manager)
+    });
     let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
 
 
-    let probe_sync_service = ProbeSyncService { store: store.clone() };
+    let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))

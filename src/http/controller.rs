@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use warp::{Filter};
+use crate::cluster::partition_manager::PartitionManager;
 
 use crate::http::handlers::{get_probe, post_json, update_probe};
-use crate::store::memory_store::MemoryStore;
 
-pub async fn setup_controller(port : u16, store : Arc<MemoryStore>) {
+pub async fn setup_controller(port : u16, store : Arc<PartitionManager>) {
     let store_filter = warp::any().map(move || store.clone());
 
     let update_probe_route = warp::put()

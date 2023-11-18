@@ -1,5 +1,5 @@
-use std::sync::{Arc, RwLock};
-use log::error;
+use std::sync::{Arc, LockResult, RwLock};
+use log::{error, warn};
 use tonic::{Request, Response, Status};
 use crate::cluster::hash::hash;
 use crate::grpc::leader_node::LeaderNode;
@@ -21,7 +21,26 @@ pub(crate) struct PartitionService {
 }
 
 impl PartitionService {
-    pub fn initialise_partitions(&mut self, nodes: Vec<Node>) {
+    pub fn new(nodes: NodeManager) -> Self {
+        let (leaders, followers) = Self::initialise_partitions(nodes.nodes.clone());
+        PartitionService {
+            leader_nodes: RwLock::new(leaders),
+            follower_nodes: RwLock::new((followers)),
+            partition_size: nodes.nodes.len(),
+            nodes,
+        }
+    }
+
+    pub fn get_leader_partition(&self, partition_id: usize) -> LeaderNode {
+        let leaders;
+        {
+            leaders = self.leader_nodes.read().unwrap();
+            let leader_ref = leaders.get(partition_id).expect("No leader to get");
+            return leader_ref.clone();
+        }
+    }
+
+    pub fn initialise_partitions(mut nodes: Vec<Arc<Node>>) -> (Vec<LeaderNode>, Vec<Arc<Node>>) {
         //distributes partition evenly across nodes with replication factor n-1
         let replica = nodes.len() - 1;
         let size = nodes.len() * replica;
@@ -36,11 +55,19 @@ impl PartitionService {
                 index += replica;
             }
         }
-        self.leader_nodes = RwLock::new(leader_nodes);
-        self.follower_nodes = RwLock::new(follower_nodes);
+        return (leader_nodes, follower_nodes);
     }
 
-    pub fn get_partition_nodes(&self, probe_id: &String) -> (LeaderNode, Arc<Node>) {
+    pub fn get_leader_delta_data(&self, partition_id: usize) -> Option<Arc<MemoryStore>> {
+        let leaders = self.leader_nodes.read().unwrap();
+        {
+            let leader_ref = leaders.get(partition_id)
+                .expect("No leader to get to copy delta data for partition");
+            return leader_ref.clone().delta_data;
+        }
+    }
+
+    pub fn get_partition_nodes(&self, probe_id: &String) -> (LeaderNode, Arc<Node>, usize) {
         let leaders;
         let followers;
         {
@@ -52,7 +79,7 @@ impl PartitionService {
             let follower_ref = followers.get(partition_id).expect("No follower to get");
 
             // Release the locks here, ensuring that the references are valid
-            (leader_ref.clone(), follower_ref.clone())
+            (leader_ref.clone(), follower_ref.clone(),partition_id)
         }
     }
 
@@ -139,16 +166,16 @@ impl Partition for PartitionService {
 }
 
 
-fn clone_except_given_value(nodes: &Vec<Node>, node: &Node) -> Vec<Node> {
+fn clone_except_given_value(nodes: &Vec<Arc<Node>>, node: &Node) -> Vec<Arc<Node>> {
     let mut temp_nodes = nodes.clone();
     temp_nodes.retain(|n| n.host_name != node.host_name);
     return temp_nodes;
 }
 
-fn assign_values_for_replica(replica: usize, follower_nodes: &mut Vec<Arc<Node>>, temp_nodes: &mut Vec<Node>, mut index: usize) {
+fn assign_values_for_replica(replica: usize, follower_nodes: &mut Vec<Arc<Node>>, temp_nodes: &mut Vec<Arc<Node>>, mut index: usize) {
     for _ in 0..replica {
         let remaining_node = temp_nodes.get(0).unwrap().clone();
-        follower_nodes.insert(index, Arc::new(remaining_node));
+        follower_nodes.insert(index, remaining_node);
         temp_nodes.remove(0);
         index += 1;
     }

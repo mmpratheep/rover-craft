@@ -5,7 +5,7 @@ use crate::grpc::node_status::NodeStatus;
 
 #[derive(Debug, Default)]
 pub struct NodeManager {
-    nodes: Vec<Arc<Node>>,
+    pub nodes: Vec<Arc<Node>>,
 }
 
 impl NodeManager {
@@ -14,8 +14,8 @@ impl NodeManager {
         for node_host in node_hosts {
             nodes.push(
                 Arc::new(
-                    Node::new(node_host).await
-                        .expect("Unable to make connection to node")
+                    Node::new(node_host.clone()).await
+                        .expect(&format!("Unable to make connection to node: {node_host}"))
                 )
             );
         }
