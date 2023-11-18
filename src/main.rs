@@ -6,11 +6,13 @@ use std::{env, process};
 use std::sync::Arc;
 
 use tonic::transport::Server as GrpcServer;
+use crate::cluster::partition_manager::PartitionManager;
+use crate::cluster::partition_service::PartitionService;
+use crate::grpc::nodes::NodeManager;
 
 use crate::grpc::probe_sync_service::ProbeSyncService;
 use crate::grpc::service::probe_sync::probe_sync_server::ProbeSyncServer;
 use crate::http::controller::setup_controller;
-use crate::store::memory_store::MemoryStore;
 
 mod probe;
 mod store;
@@ -30,11 +32,14 @@ async fn main() {
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).expect("Missing listen-peer-urls"));
     let address = format!("[::1]:{}", peer_port).parse().unwrap();
 
-    let store = Arc::new(MemoryStore::new());
+    let node_manager = NodeManager::initialise_nodes(vec!["hello".to_string()]).await;
+    let store = Arc::new(PartitionManager{
+        partition_service: PartitionService::new(node_manager)
+    });
     let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
 
 
-    let probe_sync_service = ProbeSyncService{ store: store.clone() };
+    let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
@@ -55,15 +60,15 @@ async fn main() {
 }
 
 fn write_pid() {
-    let process_id= format!("{}", process::id());
+    let process_id = format!("{}", process::id());
     println!("Current process Id is {}", &process_id);
-    let mut file= File::options().create(true).write(true).append(false).open("./rovercraft.pid").unwrap();
+    let mut file = File::options().create(true).write(true).append(false).open("./rovercraft.pid").unwrap();
     file.write_all(&process_id.as_bytes())
         .unwrap();
 }
 
 fn parse_args(args: Args) -> HashMap<String, String> {
-    let mut map : HashMap<String,String> = HashMap::new();
+    let mut map: HashMap<String, String> = HashMap::new();
 
     let arguments: Vec<String> = args.skip(1).collect();
     for index in (0..arguments.len()).step_by(2) {
@@ -76,6 +81,6 @@ fn parse_args(args: Args) -> HashMap<String, String> {
 }
 
 fn find_port(url: &String) -> u16 {
-    let index= url.rfind(":").expect("Incorrect url configured");
+    let index = url.rfind(":").expect("Incorrect url configured");
     url[index + 1..].parse().unwrap()
 }

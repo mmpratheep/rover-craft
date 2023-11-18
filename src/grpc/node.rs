@@ -1,45 +1,65 @@
+use std::ffi::OsString;
 use std::time::Duration;
 use tonic::{Code, Response, Status};
 use tonic::codegen::tokio_stream::StreamExt;
 use tonic::transport::{Channel, Error};
-use warp::http::StatusCode;
 use warp::hyper::client::connect::Connect;
 use crate::cluster::network_node::NetworkNode;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
-use crate::grpc::service::probe_sync::{ProbeProto, ReadProbeRequest, WriteProbeResponse};
+use crate::grpc::service::probe_sync::{ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
+//todo remove this clone
 pub struct Node {
-    pub address: String,
+    pub host_name: String,
     probe_store: NetworkNode,
     pub node_status: NodeStatus,
 }
 
 impl Node {
+    pub fn make_node_down(mut self) {
+        self.node_status = NodeStatus::Dead
+    }
 
-    pub(crate) async fn new(node_ip: String, current_node_ip: String) -> Result<Self, Error> {
-        if node_ip == current_node_ip {
+    pub fn is_node_not_down(&self) -> bool {
+        self.node_status != NodeStatus::Dead
+    }
+
+    pub fn is_current_node(&self) -> bool {
+        Self::is_same_node(&self.host_name)
+    }
+
+    fn is_same_node(node_ip: &String) -> bool {
+        Self::get_current_node_hostname().eq_ignore_ascii_case(&node_ip)
+    }
+
+    fn get_current_node_hostname() -> OsString {
+        hostname::get().unwrap().to_os_string()
+    }
+
+    pub(crate) async fn new(node_host_name: String) -> Result<Self, Error> {
+        if Self::is_same_node(&node_host_name) {
             return Ok(
                 Self {
-                    address: node_ip,
+                    host_name: node_host_name,
                     probe_store: NetworkNode::LocalStore(MemoryStore::new()),
                     node_status: NodeStatus::AliveServing,
                 }
             );
         }
-        let client = Self::get_channel(&node_ip).await?;
+        let client = Self::get_channel(&node_host_name).await?;
         Ok(Self {
-            address: node_ip,
+            host_name: node_host_name,
             probe_store: NetworkNode::RemoteStore(client),
             node_status: NodeStatus::AliveServing,
         })
     }
 
     async fn get_channel(address: &String) -> Result<ProbeSyncClient<Channel>, Error> {
-        let time_out = 1000;
+        let time_out = 500;
         let channel = match Channel::from_shared(address.clone()) {
             Ok(endpoint) => endpoint,
             Err(err) => {
@@ -52,26 +72,26 @@ impl Node {
         Ok(ProbeSyncClient::new(channel))
     }
 
-    pub async fn read_probe_from_store(&self, probe_id: &String) -> Result<Option<Probe>, Status> {
+    pub async fn read_probe_from_store(&self, partition_id: usize, is_leader: bool, probe_id: &String) -> Result<Option<Probe>, Status> {
         return match &self.probe_store {
             NetworkNode::LocalStore(store) => {
                 Ok(store.get_probe(&probe_id))
             }
             NetworkNode::RemoteStore(remote_store) => {
-                let response = Self::read_remote_store(remote_store.clone(), probe_id).await;
+                let response = Self::read_remote_store(remote_store.clone(), partition_id, is_leader, probe_id).await;
                 Self::get_probe_from_response(response)
             }
         };
     }
 
-    pub async fn write_probe_to_store(&self, probe: &Probe) -> Result<(), Status> {
+    pub async fn write_probe_to_store(&self, partition_id: usize, is_leader: bool, probe: &Probe) -> Result<(), Status> {
         return match &self.probe_store {
             NetworkNode::LocalStore(store) => {
                 store.save_probe(&probe);
                 Ok(())
             }
             NetworkNode::RemoteStore(remote_store) => {
-                let response = Self::write_remote_store(remote_store.clone(), probe).await;
+                let response = Self::write_remote_store(remote_store.clone(), partition_id, is_leader, probe).await;
                 match response {
                     Ok(_val) => {
                         Ok(())
@@ -107,16 +127,22 @@ impl Node {
         }
     }
 
-    pub(crate) async fn read_remote_store(mut channel: ProbeSyncClient<Channel>, probe_id: &String) -> Result<Response<ProbeProto>, Status> {
+    pub(crate) async fn read_remote_store(mut channel: ProbeSyncClient<Channel>, partition_id: usize, is_leader: bool, probe_id: &String) -> Result<Response<ProbeProto>, Status> {
         let request = tonic::Request::new(ReadProbeRequest {
-            probe_id: probe_id.to_string()
+            partition_id: partition_id as u64,
+            probe_id: probe_id.to_string(),
+            is_leader,
         });
         channel.read_probe(request).await
     }
 
-    pub(crate) async fn write_remote_store(mut channel: ProbeSyncClient<Channel>, probe: &Probe) -> Result<Response<WriteProbeResponse>, Status> {
+    pub(crate) async fn write_remote_store(mut channel: ProbeSyncClient<Channel>, partition_id: usize, is_leader: bool, probe: &Probe) -> Result<Response<WriteProbeResponse>, Status> {
         //todo try to remote the clone
-        let request = tonic::Request::new(probe.clone().to_probe_data());
+        let request = tonic::Request::new(WriteProbeRequest {
+            partition_id: partition_id as u64,
+            probe: Some(probe.clone().to_probe_data()),
+            is_leader,
+        });
         channel.write_probe(request).await
         //todo handle retry logic
     }

@@ -1,5 +1,7 @@
 pub mod probe_sync_service;
 pub(crate) mod service;
 pub mod node;
-mod node_status;
+pub mod node_status;
 mod test;
+pub mod leader_node;
+pub mod nodes;

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use warp::{Filter, Rejection, Reply};
 use warp::http::StatusCode;
 use warp::reply::{json, with_status};
+use crate::cluster::partition_manager::PartitionManager;
 
 use crate::http::probe_request::ProbeRequest;
 use crate::probe::probe::Probe;
@@ -14,19 +15,20 @@ pub fn post_json() -> impl Filter<Extract=(ProbeRequest, ), Error=Rejection> + C
 pub async fn update_probe(
     probe_id: String,
     probe_request: ProbeRequest,
-    store: Arc<MemoryStore>,
+    store: Arc<PartitionManager>,
 ) -> Result<impl Reply, Rejection> {
-    let probe = &Probe::create_probe(probe_id, probe_request);
-    store.save_probe(probe);
+    let probe = Probe::create_probe(probe_id, probe_request);
+    //todo remove await here
+    store.upsert_value(probe.clone()).await;
 
     Ok(json(&probe))
 }
 
 pub async fn get_probe(
     probe_id: String,
-    store: Arc<MemoryStore>,
+    store: Arc<PartitionManager>,
 ) -> Result<impl Reply, Rejection> {
-    let response = store.get_probe(&probe_id);
+    let response = store.read_probe(probe_id).await;
     match response {
         Some(value) => {
             Ok(with_status(json(&value), StatusCode::OK))

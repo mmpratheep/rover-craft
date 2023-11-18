@@ -3,16 +3,24 @@ package probe_sync;
 
 service ProbeSync {
   rpc ReadProbe (ReadProbeRequest) returns (ProbeProto);
-  rpc WriteProbe (ProbeProto) returns (WriteProbeResponse);
+  rpc WriteProbe (WriteProbeRequest) returns (WriteProbeResponse);
   rpc GetPartitionData (PartitionRequest) returns (ProbePartition);
 }
 
 message ReadProbeRequest {
   string probe_id = 1;
+  uint64 partition_id = 2;
+  bool is_leader = 3;
+}
+
+message WriteProbeRequest{
+  ProbeProto probe = 1;
+  uint64 partition_id = 2;
+  bool is_leader = 3;
 }
 
 message PartitionRequest{
-  string partition_id = 1;
+  uint64 partition_id = 1;
 }
 
 message ProbeProto {

@@ -10,7 +10,7 @@ mod tests {
 
     async fn setup() -> Node {
         //toto
-        match Node::new("http://localhost:9001".to_string(),"http://localhost:9001".to_string()).await {
+        match Node::new("http://localhost:9001".to_string()).await {
             Ok(val) => val,
             Err(err) => panic!("...: {:?}", err)
         }
