@@ -4,3 +4,4 @@ pub mod node;
 pub mod node_status;
 mod test;
 pub mod leader_node;
+pub mod nodes;

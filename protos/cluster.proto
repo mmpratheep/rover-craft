@@ -7,8 +7,8 @@ service HealthCheck {
 }
 
 service Partition{
-  rpc GetPartitionsFromLeader (Empty) returns (Partitions);
-  rpc DistributePartitions (Partitions) returns (Empty);
+  rpc MakeNodeAliveNotServing (AliveNotServingRequest) returns (Empty);
+  rpc MakeNodeAliveServing (Empty) returns (Empty);
 }
 
 message HealthCheckRequest {
@@ -19,13 +19,9 @@ message HealthCheckResponse {
   bool pong = 1;
 }
 
-message Partitions{
-  Nodes leaderNodes = 1;
-  Nodes followerNodes = 2;
-}
-
-message Nodes{
-  repeated string ip_address = 1;
+message AliveNotServingRequest{
+  string host_name = 1;
+  repeated uint32 partitions = 2;
 }
 
 message Empty{}

@@ -1,13 +1,10 @@
 use log::error;
-use tonic::Status;
 use crate::cluster::partition_service::PartitionService;
 use crate::grpc::node::Node;
 use crate::probe::probe::Probe;
 
 struct PartitionManager {
     partition_service: PartitionService,
-    nodes: Vec<Node>,
-    local_ip: String,
 }
 
 impl PartitionManager {
@@ -18,34 +15,27 @@ impl PartitionManager {
     //     }
     // }
 
-
-    fn publish_partition_re_balance() {
-        todo!()
+    pub fn make_node_down(&mut self, node: Node){
+        if node.is_node_not_down() {
+            node.make_node_down();
+            //todo notice other nodes saying that one node is down, also make sure that the current node is not down
+            self.partition_service.balance_partitions_and_write_delta_data()
+            //todo once the node is back, need to publish a message to other nodes saying that the node will be the leader for the existing leader partitions
+            //todo also move it's state to aliveAndServing and it can receive the writes for the partition, post the catchup it will send another request saying moved back to aliveAndServing
+        }
     }
 
-    fn assign_delta_data_backup(){
-        todo!()
-    }
-
-    fn get_leader(&mut self) -> Option<&Node> {
-        // health_check_and_update_status(&self.nodes);
-        //todo decide whether current node is alive or dead
-        self.nodes.sort_by_key(| it | it.address.clone());
-        self.nodes.get(0)
-    }
-
-    fn get_partition_assignment_from_leader(){
-        todo!()
-    }
 
     fn re_balance_partition() {
         todo!()
     }
 
-    pub async fn get_probe(&self, probe_id: String) -> Option<Probe>{
+    pub async fn read_probe(&self, probe_id: String) -> Option<Probe>{
         //todo clone
         let (leader_node,follower_node) = self.partition_service.get_partition_nodes(&probe_id);
-        let result = leader_node.unwrap().read_probe_from_store(&probe_id).await;
+        //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing -> then read from that
+        //todo else read from the follower partition
+        let result = leader_node.unwrap().node.read_probe_from_store(&probe_id).await;
         return match result {
             Ok(probe) => {
                 probe
@@ -70,6 +60,8 @@ impl PartitionManager {
         //todo WIP..
         //todo try to send leader and follower write request in parallel
         //todo what happens when leader is down
+        //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing & AliveNotServing then write
+        //todo else read from the follower partition
         let (leader_node,follower_node) = self.partition_service.get_partition_nodes(&probe.probe_id);
         let result = leader_node.unwrap().write_probe_to_store(&probe).await;
         let res = follower_node.unwrap().write_probe_to_store(&probe).await;
@@ -81,9 +73,5 @@ impl PartitionManager {
                 None
             }
         };
-    }
-
-    fn is_current_node(&self, node_ip: &String) -> bool {
-        *node_ip == self.local_ip
     }
 }

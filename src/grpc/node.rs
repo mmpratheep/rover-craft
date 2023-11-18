@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::time::Duration;
 use tonic::{Code, Response, Status};
 use tonic::codegen::tokio_stream::StreamExt;
@@ -23,23 +24,35 @@ impl Node {
         self.node_status = NodeStatus::Dead
     }
 
-    pub fn is_current_node(self) -> bool {
-        hostname::get().unwrap().eq_ignore_ascii_case(&self.host_name)
+    pub fn is_node_not_down(&self) -> bool {
+        self.node_status != NodeStatus::Dead
     }
 
-    pub(crate) async fn new(node_ip: String, current_node_ip: String) -> Result<Self, Error> {
-        if node_ip == current_node_ip {
+    pub fn is_current_node(&self) -> bool {
+        Self::is_same_node(&self.host_name)
+    }
+
+    fn is_same_node(node_ip: &String) -> bool {
+        Self::get_current_node_hostname().eq_ignore_ascii_case(&node_ip)
+    }
+
+    fn get_current_node_hostname() -> OsString {
+        hostname::get().unwrap().to_os_string()
+    }
+
+    pub(crate) async fn new(node_host_name: String) -> Result<Self, Error> {
+        if Self::is_same_node(&node_host_name) {
             return Ok(
                 Self {
-                    host_name: node_ip,
+                    host_name: node_host_name,
                     probe_store: NetworkNode::LocalStore(MemoryStore::new()),
                     node_status: NodeStatus::AliveServing,
                 }
             );
         }
-        let client = Self::get_channel(&node_ip).await?;
+        let client = Self::get_channel(&node_host_name).await?;
         Ok(Self {
-            host_name: node_ip,
+            host_name: node_host_name,
             probe_store: NetworkNode::RemoteStore(client),
             node_status: NodeStatus::AliveServing,
         })

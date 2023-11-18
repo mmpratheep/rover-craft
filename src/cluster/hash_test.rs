@@ -15,6 +15,6 @@ fn should_generate_hash() {
         data: "this is an dummy data".to_string(),
     };
 
-    assert_eq!(11564296154245411618, hash(probe_id))
+    assert_eq!(11564296154245411618, hash(probe_id.probe_id))
 }
 

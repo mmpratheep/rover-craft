@@ -1,9 +1,11 @@
-use std::sync::Arc;
+use std::sync::{Arc, LockResult, RwLock};
+use log::error;
 use tonic::{Request, Response, Status};
 use crate::cluster::hash::hash;
 use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
 use crate::grpc::node_status::NodeStatus;
+use crate::grpc::nodes::Nodes;
 use crate::grpc::service::cluster::{AliveNotServingRequest, Empty};
 use crate::grpc::service::cluster::partition_server::Partition;
 use crate::store::memory_store::MemoryStore;
@@ -12,9 +14,10 @@ use crate::store::memory_store::MemoryStore;
 #[derive(Debug, Default)]
 pub(crate) struct PartitionService {
     //todo store the reference of Nodes in leader/follower nodes
-    leader_nodes: Vec<LeaderNode>,
-    follower_nodes: Vec<Arc<Node>>,
+    leader_nodes: RwLock<Vec<LeaderNode>>,
+    follower_nodes: RwLock<Vec<Arc<Node>>>,
     partition_size: usize,
+    nodes: Nodes
 }
 
 impl PartitionService {
@@ -33,8 +36,8 @@ impl PartitionService {
                 index += replica;
             }
         }
-        self.leader_nodes = leader_nodes;
-        self.follower_nodes = follower_nodes;
+        self.leader_nodes = RwLock::new(leader_nodes);
+        self.follower_nodes = RwLock::new(follower_nodes);
     }
 
     // fn remove_node(nodes: &mut Vec<Arc<Node>>, node: &Node) {
@@ -49,34 +52,33 @@ impl PartitionService {
     pub fn get_partition_nodes(&self, probe_id: &String) -> (Option<&LeaderNode>, Option<&Arc<Node>>) {
         let hash = hash(probe_id.clone());
         let partition_id = hash % self.partition_size;
-        (self.leader_nodes.get(partition_id), self.follower_nodes.get(partition_id))
+        (self.leader_nodes.read().unwrap().get(partition_id), self.follower_nodes.read().unwrap().get(partition_id))
     }
 
     pub(crate) fn balance_partitions_and_write_delta_data(&mut self) {
-        for i in 0..self.leader_nodes.len() {
-            let leader_node = self.leader_nodes.get(i).unwrap();
-            let follower_node = self.follower_nodes.get(i).unwrap();
-            self.reassign_leader_partition_and_write_delta_data(i, leader_node, follower_node);
-
-            self.handle_follower_delta_data_write(i, follower_node);
-        }
-    }
-
-    fn reassign_leader_partition_and_write_delta_data(&mut self, i: usize, leader_node: &LeaderNode, follower_node: &Arc<Node>) {
-        if leader_node.node.node_status == NodeStatus::Dead {
-            let mut delta_data: Option<MemoryStore> = None;
-            if follower_node.is_current_node() {
-                delta_data = Some(MemoryStore::new());
+        //todo make sure it's happening only once
+        for i in 0..self.leader_nodes.read().unwrap().len() {
+            let leader_node = self.leader_nodes.read().unwrap().get(i).unwrap();
+            let follower_node = self.follower_nodes.read().unwrap().get(i).unwrap();
+            if leader_node.node.node_status == NodeStatus::Dead {
+                let mut delta_data: Option<MemoryStore> = None;
+                if follower_node.is_current_node() {
+                    delta_data = Some(MemoryStore::new());
+                }
+                self.leader_nodes.write().unwrap()[i] = LeaderNode { node: follower_node.clone(), delta_data: None };
             }
-            self.leader_nodes[i] = LeaderNode { node: follower_node.clone(), delta_data: None };
-        }
-    }
 
-    fn handle_follower_delta_data_write(&mut self, i: usize, follower_node: &Arc<Node>) {
-        if follower_node.node_status == NodeStatus::Dead {
-            if follower_node.is_current_node() {
-                let mut leader_node = self.leader_nodes.get_mut(i).unwrap();
-                leader_node.delta_data = Some(Arc::new(MemoryStore::new()));
+            if follower_node.node_status == NodeStatus::Dead {
+                if follower_node.is_current_node() {
+                    match self.leader_nodes.write() {
+                        Ok(mut nodes) => {
+                            nodes[i].delta_data = Some(Arc::new(MemoryStore::new()));
+                        }
+                        Err(err) => {
+                            error!("Failed to acquire write lock to create delta-data map {}",err);
+                        }
+                    }
+                }
             }
         }
     }
@@ -85,7 +87,30 @@ impl PartitionService {
 #[tonic::async_trait]
 impl Partition for PartitionService {
     async fn make_node_alive_not_serving(&self, request: Request<AliveNotServingRequest>) -> Result<Response<Empty>, Status> {
-        todo!()
+        //todo
+        let req_data = request.into_inner();
+        let node_host_name = req_data.host_name;
+        for i in req_data.partitions {
+            match self.leader_nodes.write() {
+                Ok(l_nodes) => {
+                    match self.follower_nodes.write() {
+                        Ok(f_nodes) => {
+                            let index = i as usize;
+                            f_nodes[index] = l_nodes[index].node.clone();
+                            l_nodes[index].node = self.nodes.get_node(node_host_name.clone()).unwrap();
+                            //todo check whether it handles properly for the second node assignment
+                        }
+                        Err(err) => {
+                            error!("Failed to get write lock for followers {}",erorr)
+                        }
+                    }
+                }
+                Err(error) => {
+                    error!("Failed to get write lock for leaders {}",error)
+                }
+            }
+        };
+        Ok(Response::new(Empty {}))
     }
 
     async fn make_node_alive_serving(&self, request: Request<Empty>) -> Result<Response<Empty>, Status> {

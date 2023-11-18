@@ -12,17 +12,11 @@ pub struct HealthCheckResponse {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Partitions {
-    #[prost(message, optional, tag = "1")]
-    pub leader_nodes: ::core::option::Option<Nodes>,
-    #[prost(message, optional, tag = "2")]
-    pub follower_nodes: ::core::option::Option<Nodes>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Nodes {
-    #[prost(string, repeated, tag = "1")]
-    pub ip_address: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+pub struct AliveNotServingRequest {
+    #[prost(string, tag = "1")]
+    pub host_name: ::prost::alloc::string::String,
+    #[prost(uint32, repeated, tag = "2")]
+    pub partitions: ::prost::alloc::vec::Vec<u32>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -224,10 +218,10 @@ pub mod partition_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        pub async fn get_partitions_from_leader(
+        pub async fn make_node_alive_not_serving(
             &mut self,
-            request: impl tonic::IntoRequest<super::Empty>,
-        ) -> std::result::Result<tonic::Response<super::Partitions>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::AliveNotServingRequest>,
+        ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -239,11 +233,33 @@ pub mod partition_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cluster.Partition/GetPartitionsFromLeader",
+                "/cluster.Partition/MakeNodeAliveNotServing",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("cluster.Partition", "GetPartitionsFromLeader"));
+                .insert(GrpcMethod::new("cluster.Partition", "MakeNodeAliveNotServing"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn make_node_alive_serving(
+            &mut self,
+            request: impl tonic::IntoRequest<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/cluster.Partition/MakeNodeAliveServing",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("cluster.Partition", "MakeNodeAliveServing"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -436,10 +452,14 @@ pub mod partition_server {
     /// Generated trait containing gRPC methods that should be implemented for use with PartitionServer.
     #[async_trait]
     pub trait Partition: Send + Sync + 'static {
-        async fn get_partitions_from_leader(
+        async fn make_node_alive_not_serving(
+            &self,
+            request: tonic::Request<super::AliveNotServingRequest>,
+        ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status>;
+        async fn make_node_alive_serving(
             &self,
             request: tonic::Request<super::Empty>,
-        ) -> std::result::Result<tonic::Response<super::Partitions>, tonic::Status>;
+        ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct PartitionServer<T: Partition> {
@@ -520,23 +540,25 @@ pub mod partition_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/cluster.Partition/GetPartitionsFromLeader" => {
+                "/cluster.Partition/MakeNodeAliveNotServing" => {
                     #[allow(non_camel_case_types)]
-                    struct GetPartitionsFromLeaderSvc<T: Partition>(pub Arc<T>);
-                    impl<T: Partition> tonic::server::UnaryService<super::Empty>
-                    for GetPartitionsFromLeaderSvc<T> {
-                        type Response = super::Partitions;
+                    struct MakeNodeAliveNotServingSvc<T: Partition>(pub Arc<T>);
+                    impl<
+                        T: Partition,
+                    > tonic::server::UnaryService<super::AliveNotServingRequest>
+                    for MakeNodeAliveNotServingSvc<T> {
+                        type Response = super::Empty;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::Empty>,
+                            request: tonic::Request<super::AliveNotServingRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as Partition>::get_partitions_from_leader(
+                                <T as Partition>::make_node_alive_not_serving(
                                         &inner,
                                         request,
                                     )
@@ -552,7 +574,52 @@ pub mod partition_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = GetPartitionsFromLeaderSvc(inner);
+                        let method = MakeNodeAliveNotServingSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/cluster.Partition/MakeNodeAliveServing" => {
+                    #[allow(non_camel_case_types)]
+                    struct MakeNodeAliveServingSvc<T: Partition>(pub Arc<T>);
+                    impl<T: Partition> tonic::server::UnaryService<super::Empty>
+                    for MakeNodeAliveServingSvc<T> {
+                        type Response = super::Empty;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::Empty>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as Partition>::make_node_alive_serving(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = MakeNodeAliveServingSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

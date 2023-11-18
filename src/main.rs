@@ -34,7 +34,7 @@ async fn main() {
     let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
 
 
-    let probe_sync_service = ProbeSyncService{ store: store.clone() };
+    let probe_sync_service = ProbeSyncService { store: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
@@ -55,15 +55,15 @@ async fn main() {
 }
 
 fn write_pid() {
-    let process_id= format!("{}", process::id());
+    let process_id = format!("{}", process::id());
     println!("Current process Id is {}", &process_id);
-    let mut file= File::options().create(true).write(true).append(false).open("./rovercraft.pid").unwrap();
+    let mut file = File::options().create(true).write(true).append(false).open("./rovercraft.pid").unwrap();
     file.write_all(&process_id.as_bytes())
         .unwrap();
 }
 
 fn parse_args(args: Args) -> HashMap<String, String> {
-    let mut map : HashMap<String,String> = HashMap::new();
+    let mut map: HashMap<String, String> = HashMap::new();
 
     let arguments: Vec<String> = args.skip(1).collect();
     for index in (0..arguments.len()).step_by(2) {
@@ -76,6 +76,6 @@ fn parse_args(args: Args) -> HashMap<String, String> {
 }
 
 fn find_port(url: &String) -> u16 {
-    let index= url.rfind(":").expect("Incorrect url configured");
+    let index = url.rfind(":").expect("Incorrect url configured");
     url[index + 1..].parse().unwrap()
 }
