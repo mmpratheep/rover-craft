@@ -17,7 +17,7 @@ impl ProbeSync for ProbeSyncService {
         let req = request.into_inner();
 
         match self.partition_manager
-            .read_probe_from_partition(req.partition_id as usize,req.is_leader, req.probe_id)
+            .read_probe_from_partition(req.partition_id as usize, req.is_leader, req.probe_id)
             .await {
             Some(probe) => {
                 Ok(Response::new(probe.to_probe_data()))
@@ -32,9 +32,10 @@ impl ProbeSync for ProbeSyncService {
         let req = request.into_inner();
 
         self.partition_manager
-            .write_probe_to_partition(req.partition_id as usize,
-                                      req.is_leader,
-                                      Probe::from_probe_proto(req.probe.unwrap())).await;
+            .write_probe_to_partition(
+                req.partition_id as usize,
+                req.is_leader,
+                Probe::from_probe_proto(req.probe.unwrap())).await;
         //todo check whether the above statement will always pass without any error, if so,then handle that scenario
         Ok(Response::new(WriteProbeResponse { confirmation: true }))
     }

@@ -33,32 +33,33 @@ impl Node {
     }
 
     fn is_same_node(node_ip: &String) -> bool {
-        Self::get_current_node_hostname().eq_ignore_ascii_case(&node_ip)
+        let current_node_host_name = Self::get_current_node_hostname().into_string().unwrap();
+        println!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
+        node_ip.contains(&current_node_host_name)
     }
 
     fn get_current_node_hostname() -> OsString {
         hostname::get().unwrap().to_os_string()
     }
 
-    pub(crate) async fn new(node_host_name: String) -> Result<Self, Error> {
+    pub(crate) async fn new(node_host_name: String) -> Self {
         if Self::is_same_node(&node_host_name) {
-            return Ok(
+            return
                 Self {
                     host_name: node_host_name,
                     probe_store: NetworkNode::LocalStore(MemoryStore::new()),
                     node_status: NodeStatus::AliveServing,
-                }
-            );
+                };
         }
-        let client = Self::get_channel(&node_host_name).await?;
-        Ok(Self {
+        let client = Self::get_channel(&node_host_name).await;
+        Self {
             host_name: node_host_name,
             probe_store: NetworkNode::RemoteStore(client),
             node_status: NodeStatus::AliveServing,
-        })
+        }
     }
 
-    async fn get_channel(address: &String) -> Result<ProbeSyncClient<Channel>, Error> {
+    async fn get_channel(address: &String) -> ProbeSyncClient<Channel> {
         let time_out = 500;
         let channel = match Channel::from_shared(address.clone()) {
             Ok(endpoint) => endpoint,
@@ -67,9 +68,9 @@ impl Node {
             }
         }
             .timeout(Duration::from_millis(time_out))
-            .connect().await?;
+            .connect_lazy();
 
-        Ok(ProbeSyncClient::new(channel))
+        ProbeSyncClient::new(channel)
     }
 
     pub async fn read_probe_from_store(&self, partition_id: usize, is_leader: bool, probe_id: &String) -> Result<Option<Probe>, Status> {
@@ -78,6 +79,7 @@ impl Node {
                 Ok(store.get_probe(&probe_id))
             }
             NetworkNode::RemoteStore(remote_store) => {
+                println!("Starting Remote read call");
                 let response = Self::read_remote_store(remote_store.clone(), partition_id, is_leader, probe_id).await;
                 Self::get_probe_from_response(response)
             }
@@ -111,6 +113,7 @@ impl Node {
                 Ok(Some(Probe::from_probe_proto(val.into_inner())))
             }
             Err(err) => {
+                println!("Err from remote read: {}", err);
                 return Self::parse_error(err);
             }
         };

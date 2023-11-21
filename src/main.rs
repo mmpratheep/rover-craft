@@ -31,8 +31,11 @@ async fn main() {
     let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).expect("Missing listen-client-urls"));
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).expect("Missing listen-peer-urls"));
     let address = format!("[::1]:{}", peer_port).parse().unwrap();
+    let peer_host_names = get_peer_hostnames(parsed_argument, peer_port);
 
-    let node_manager = NodeManager::initialise_nodes(vec!["hello".to_string()]).await;
+    print!("{}",peer_host_names[0]);
+
+    let node_manager = NodeManager::initialise_nodes(peer_host_names).await;
     let store = Arc::new(PartitionManager{
         partition_service: PartitionService::new(node_manager)
     });
@@ -57,6 +60,13 @@ async fn main() {
     println!("Started peer listener on {}", peer_port);
 
     tokio::try_join!(grpc_server, http_server);
+}
+
+fn get_peer_hostnames(parsed_argument: HashMap<String, String>, peer_port: u16) -> Vec<String> {
+    parsed_argument.get(INITIAL_CLUSTER)
+        .unwrap().split(",")
+        .map(|it| format!("{}:{}", it, peer_port))
+        .collect()
 }
 
 fn write_pid() {

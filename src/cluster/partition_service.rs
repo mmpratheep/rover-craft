@@ -23,6 +23,9 @@ pub(crate) struct PartitionService {
 impl PartitionService {
     pub fn new(nodes: NodeManager) -> Self {
         let (leaders, followers) = Self::initialise_partitions(nodes.nodes.clone());
+        println!("leaders: {:?}",leaders);
+        println!("followers: {:?}",followers);
+        println!("partition size: {:?}",nodes.nodes.len());
         PartitionService {
             leader_nodes: RwLock::new(leaders),
             follower_nodes: RwLock::new((followers)),
@@ -83,6 +86,8 @@ impl PartitionService {
             let partition_id = hash % self.partition_size;
             leaders = self.leader_nodes.read().unwrap();
             followers = self.follower_nodes.read().unwrap();
+            println!("leader partition id: {}",partition_id);
+            println!("follower partition id: {}",partition_id);
             let leader_ref = leaders.get(partition_id).expect("No leader to get");
             let follower_ref = followers.get(partition_id).expect("No follower to get");
 

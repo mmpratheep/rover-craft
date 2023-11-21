@@ -40,6 +40,8 @@ impl PartitionManager {
         //todo clone
         let (leader_node, follower_node, partition_id) = self.partition_service
             .get_partition_nodes(&probe_id);
+        println!("leader: {:?}", leader_node);
+        println!("follower: {:?}", follower_node);
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing -> then read from that
         //todo else read from the follower partition
         let result = leader_node.node.read_probe_from_store(partition_id, true, &probe_id).await;
@@ -72,6 +74,8 @@ impl PartitionManager {
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing & AliveNotServing then write
         //todo else read from the follower partition
         let (leader_node, follower_node, partition_id) = self.partition_service.get_partition_nodes(&probe.probe_id);
+        println!("leader: {:?}", leader_node);
+        println!("follower: {:?}", follower_node);
         let result = leader_node.write_probe_to_store(partition_id, &probe).await;
         let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
         return match result {

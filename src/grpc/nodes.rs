@@ -15,11 +15,11 @@ impl NodeManager {
             nodes.push(
                 Arc::new(
                     Node::new(node_host.clone()).await
-                        .expect(&format!("Unable to make connection to node: {node_host}"))
                 )
             );
         }
         nodes.sort_by_key(|it| it.host_name.clone());
+        println!("nodes: {:?}",nodes);
         NodeManager {
             nodes
         }
