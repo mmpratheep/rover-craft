@@ -1,16 +1,19 @@
+use std::{env, process};
 use std::collections::HashMap;
 use std::env::Args;
 use std::fs::File;
 use std::io::Write;
-use std::{env, process};
 use std::sync::Arc;
 
+use clokwerk::TimeUnits;
 use tonic::transport::Server as GrpcServer;
+
+use crate::cluster::health_check_service::HealthCheckService;
 use crate::cluster::partition_manager::PartitionManager;
 use crate::cluster::partition_service::PartitionService;
 use crate::grpc::nodes::NodeManager;
-
 use crate::grpc::probe_sync_service::ProbeSyncService;
+use crate::grpc::service::cluster::health_check_server::HealthCheckServer;
 use crate::grpc::service::probe_sync::probe_sync_server::ProbeSyncServer;
 use crate::http::controller::setup_controller;
 
@@ -31,22 +34,27 @@ async fn main() {
     print!("Args : {:?}",parsed_argument);
     let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).expect("Missing listen-client-urls"));
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).expect("Missing listen-peer-urls"));
+
+    // get peers, every .5 second check health
     let address = format!("[::1]:{}", peer_port).parse().unwrap();
     let peer_host_names = get_peer_hostnames(parsed_argument, peer_port);
 
     print!("{}",peer_host_names[0]);
 
     let node_manager = NodeManager::initialise_nodes(peer_host_names).await;
+    let node_manager = Arc::new(NodeManager::initialise_nodes(vec!["hello".to_string()]).await);
     let store = Arc::new(PartitionManager{
-        partition_service: PartitionService::new(node_manager)
+        partition_service: PartitionService::new(node_manager.clone())
     });
     let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
 
 
     let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
 
+    let health_check_service = HealthCheckService::new(node_manager.clone());
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
+        .add_service(HealthCheckServer::new(health_check_service))
         .serve(address));
 
     println!(
@@ -60,7 +68,11 @@ async fn main() {
     println!("Started listener on {}", listen_port);
     println!("Started peer listener on {}", peer_port);
 
+    health_check_service.start_health_check();
+
     tokio::try_join!(grpc_server, http_server);
+
+
 }
 
 fn get_peer_hostnames(parsed_argument: HashMap<String, String>, peer_port: u16) -> Vec<String> {
