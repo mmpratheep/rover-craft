@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use clokwerk::{Scheduler, TimeUnits};
 use log::info;
+use tokio::time::interval;
 use tonic::{Request, Response, Status};
 
 use crate::grpc::nodes::NodeManager;
@@ -11,8 +12,7 @@ use crate::grpc::service::cluster::health_check_server::HealthCheck;
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct HealthCheckService {
-    nodes: Arc<NodeManager>,
-    scheduler: Scheduler,
+    pub(crate) nodes: Arc<NodeManager>
 }
 
 #[tonic::async_trait]
@@ -25,18 +25,19 @@ impl HealthCheck for HealthCheckService {
 }
 
 impl HealthCheckService {
-    pub fn new(nodes: Arc<NodeManager>) -> Self {
-        let mut scheduler = Scheduler::new();
-        scheduler.every(1.seconds())
-            .run(|| println!("Periodic task"));
+    pub async fn start_health_check(&self)  {
+        let mut interval = interval(Duration::from_secs(1));
 
-        HealthCheckService {
-            nodes,
-            scheduler,
+        loop {
+            // Wait for the next tick
+            interval.tick().await;
+
+            println!("hello")
+            // Perform health check on other nodes
+            // match Self::perform_health_check(&node_manager).await {
+            //     Ok(_) => println!("Health check passed"),
+            //     Err(err) => eprintln!("Health check failed: {}", err),
+            // }
         }
-    }
-
-    pub fn start_health_check(&self) -> () {
-        let thread_handle = self.scheduler.watch_thread(Duration::from_millis(100));
     }
 }
