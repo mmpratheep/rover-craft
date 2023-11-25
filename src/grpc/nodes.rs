@@ -64,7 +64,7 @@ impl NodeManager {
 
     pub fn get_nodes(&self) -> Vec<&Arc<Node>> {
         self.nodes.iter()
-          //.filter(|node| !node.is_current_node())
+          .filter(|node| !node.is_current_node())
             .collect()
 
     }
