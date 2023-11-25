@@ -5,16 +5,13 @@ use std::io::Write;
 use std::{env, process};
 use std::future::Future;
 use std::sync::{Arc};
-use std::sync::RwLock;
 use tokio::sync::RwLock as TrwLock;
-use std::time::Duration;
-use tokio::time::interval;
 
 use tonic::transport::Server as GrpcServer;
-use crate::cluster::health_check_service;
 use crate::cluster::health_check_service::HealthCheckService;
 use crate::cluster::partition_manager::PartitionManager;
 use crate::cluster::partition_service::PartitionService;
+use crate::cluster::proto_partition_service::ProtoPartitionService;
 use crate::grpc::nodes::NodeManager;
 
 use crate::grpc::probe_sync_service::ProbeSyncService;
@@ -37,18 +34,18 @@ static INITIAL_CLUSTER: &str = "initial-cluster";
 async fn main() {
     write_pid();
     let parsed_argument = parse_args(env::args());
-    print!("Args : {:?}",parsed_argument);
+    print!("Args : {:?}", parsed_argument);
     let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).or(Some(&"http://localhost:9000".to_string())).expect("Missing listen-client-urls"));
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).or(Some(&"http://localhost:9001".to_string())).expect("Missing listen-peer-urls"));
     let address = format!("0.0.0.0:{}", peer_port).parse().unwrap();
-    println!("gRPC local address: {}",address);
+    println!("gRPC local address: {}", address);
     let peer_host_names = get_peer_hostnames(parsed_argument, peer_port);
 
-    println!("{}",peer_host_names[0]);
+    println!("{}", peer_host_names[0]);
 
     let node_manager = Arc::new(NodeManager::initialise_nodes(peer_host_names).await);
     let partition_service = Arc::new(TrwLock::new(PartitionService::new(node_manager.clone())));
-    let store = Arc::new(PartitionManager{
+    let store = Arc::new(PartitionManager {
         partition_service: partition_service.clone()
     });
     let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
@@ -60,8 +57,8 @@ async fn main() {
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
-        .add_service(HealthCheckServer::new(HealthCheckService{}))
-        .add_service(PartitionProtoServer::new(partition_service))
+        .add_service(HealthCheckServer::new(HealthCheckService {}))
+        .add_service(PartitionProtoServer::new(ProtoPartitionService { partition_service }))
         .serve(address));
 
     print_info(listen_port, peer_port);

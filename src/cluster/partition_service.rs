@@ -1,20 +1,18 @@
 use std::sync::{Arc};
 use std::sync::RwLock;
-use log::{error, warn};
-use tonic::{Request, Response, Status};
+use log::{error};
 use crate::cluster::hash::hash;
 use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::nodes::NodeManager;
-use crate::grpc::service::cluster::{Empty, AnnounceAliveRequest};
-use crate::grpc::service::cluster::partition_proto_server::PartitionProto;
 use crate::store::memory_store::MemoryStore;
 
 
 #[derive(Debug, Default)]
 pub(crate) struct PartitionService {
     //todo store the reference of Nodes in leader/follower nodes
+    //todo check and remove locks because the partition-service itself has a lock
     pub(crate) leader_nodes: RwLock<Vec<LeaderNode>>,
     pub follower_nodes: RwLock<Vec<Arc<Node>>>,
     pub partition_size: usize,
