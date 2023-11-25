@@ -1,11 +1,14 @@
 use std::ffi::OsString;
 use std::time::Duration;
+use log::{debug, log};
 use tonic::{Code, Response, Status};
 use tonic::codegen::tokio_stream::StreamExt;
 use tonic::transport::{Channel, Error};
 use warp::hyper::client::connect::Connect;
 use crate::cluster::network_node::NetworkNode;
 use crate::grpc::node_status::NodeStatus;
+use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
+use crate::grpc::service::cluster::{HealthCheckRequest, HealthCheckResponse};
 use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
 use crate::grpc::service::probe_sync::{ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};
 use crate::probe::probe::Probe;
@@ -16,6 +19,7 @@ use crate::store::memory_store::MemoryStore;
 pub struct Node {
     pub host_name: String,
     probe_store: NetworkNode,
+    health_check_client: HealthCheckClient<Channel>,
     pub node_status: NodeStatus,
 }
 
@@ -34,7 +38,7 @@ impl Node {
 
     fn is_same_node(node_ip: &String) -> bool {
         let current_node_host_name = Self::get_current_node_hostname().into_string().unwrap();
-        println!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
+        debug!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
         node_ip.contains(&current_node_host_name)
     }
 
@@ -46,31 +50,30 @@ impl Node {
         if Self::is_same_node(&node_host_name) {
             return
                 Self {
-                    host_name: node_host_name,
+                    host_name: node_host_name.clone(),
                     probe_store: NetworkNode::LocalStore(MemoryStore::new()),
+                    health_check_client: HealthCheckClient::new(Self::get_channel(&node_host_name).await),
                     node_status: NodeStatus::AliveServing,
                 };
         }
-        let client = Self::get_channel(&node_host_name).await;
         Self {
-            host_name: node_host_name,
-            probe_store: NetworkNode::RemoteStore(client),
+            host_name: node_host_name.clone(),
+            probe_store: NetworkNode::RemoteStore(ProbeSyncClient::new(Self::get_channel(&node_host_name).await)),
+            health_check_client: HealthCheckClient::new(Self::get_channel(&node_host_name).await),
             node_status: NodeStatus::AliveServing,
         }
     }
 
-    async fn get_channel(address: &String) -> ProbeSyncClient<Channel> {
+    async fn get_channel(address: &String) -> Channel {
         let time_out = 500;
-        let channel = match Channel::from_shared(address.clone()) {
+         match Channel::from_shared(address.clone()) {
             Ok(endpoint) => endpoint,
             Err(err) => {
                 panic!("Unable to parse URI {:?}", err)
             }
         }
             .timeout(Duration::from_millis(time_out))
-            .connect_lazy();
-
-        ProbeSyncClient::new(channel)
+            .connect_lazy()
     }
 
     pub async fn read_probe_from_store(&self, partition_id: usize, is_leader: bool, probe_id: &String) -> Result<Option<Probe>, Status> {
@@ -104,6 +107,20 @@ impl Node {
                 }
             }
         };
+    }
+
+    pub async fn do_health_check(&self) -> Result<(), Status> {
+        let response = self.health_check_client.clone()
+            .health_check(HealthCheckRequest{ping: true}).await;
+
+        return match response {
+            Ok(_val) => {
+                Ok(())
+            }
+            Err(err) => {
+                Err(err)
+            }
+        }
     }
 
 
