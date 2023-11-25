@@ -19,6 +19,7 @@ use crate::grpc::nodes::NodeManager;
 
 use crate::grpc::probe_sync_service::ProbeSyncService;
 use crate::grpc::service::cluster::health_check_server::HealthCheckServer;
+use crate::grpc::service::cluster::partition_proto_server::PartitionProtoServer;
 use crate::grpc::service::probe_sync::probe_sync_server::ProbeSyncServer;
 use crate::http::controller::setup_controller;
 
@@ -60,6 +61,7 @@ async fn main() {
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
         .add_service(HealthCheckServer::new(HealthCheckService{}))
+        .add_service(PartitionProtoServer::new(partition_service))
         .serve(address));
 
     print_info(listen_port, peer_port);

@@ -52,7 +52,7 @@ impl HealthCheckService {
             if partition_service.read().await.nodes.is_current_node_down() {
                 interval = tokio::time::interval(Duration::from_millis(100));
             } else {
-                partition_service.write().await.balance_partitions_and_write_delta_data();
+                partition_service.write().await.balance_partitions_and_write_delta_data().await;
             }
         }
     }
