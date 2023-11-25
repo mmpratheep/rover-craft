@@ -44,7 +44,7 @@ impl ProbeSync for ProbeSyncService {
         //todo need to check if it can properly send the data without any data loss
         let partition_id = request.into_inner().partition_id;
         let delta_partition = self.partition_manager
-            .get_delta_data(partition_id as usize).unwrap();
-        Ok(Response::new(ProbePartition { probe_array: delta_partition.serialise() }))
+            .get_delta_data(partition_id as usize).await;
+        Ok(Response::new(ProbePartition { probe_array: delta_partition.expect("unable to get delta partition").serialise() }))
     }
 }

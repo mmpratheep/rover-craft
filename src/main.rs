@@ -4,7 +4,9 @@ use std::fs::File;
 use std::io::Write;
 use std::{env, process};
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::{Arc};
+use std::sync::RwLock;
+use tokio::sync::RwLock as TrwLock;
 use std::time::Duration;
 use tokio::time::interval;
 
@@ -35,29 +37,29 @@ async fn main() {
     write_pid();
     let parsed_argument = parse_args(env::args());
     print!("Args : {:?}",parsed_argument);
-    let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).expect("Missing listen-client-urls"));
-    let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).expect("Missing listen-peer-urls"));
-
-    // get peers, every .5 second check health
+    let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).or(Some(&"http://localhost:9000".to_string())).expect("Missing listen-client-urls"));
+    let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).or(Some(&"http://localhost:9001".to_string())).expect("Missing listen-peer-urls"));
     let address = format!("0.0.0.0:{}", peer_port).parse().unwrap();
+    println!("gRPC local address: {}",address);
     let peer_host_names = get_peer_hostnames(parsed_argument, peer_port);
 
-    print!("{}",peer_host_names[0]);
+    println!("{}",peer_host_names[0]);
 
     let node_manager = Arc::new(NodeManager::initialise_nodes(peer_host_names).await);
+    let partition_service = Arc::new(TrwLock::new(PartitionService::new(node_manager.clone())));
     let store = Arc::new(PartitionManager{
-        partition_service: PartitionService::new(node_manager.clone())
+        partition_service: partition_service.clone()
     });
     let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
 
-    let health_check_future = tokio::spawn(HealthCheckService::start_health_check(node_manager.clone()));
+    let health_check_future = tokio::spawn(HealthCheckService::start_health_check(partition_service.clone()));
 
 
     let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
-        .add_service(HealthCheckServer::new(HealthCheckService::new(node_manager.clone())))
+        .add_service(HealthCheckServer::new(HealthCheckService{}))
         .serve(address));
 
     print_info(listen_port, peer_port);
@@ -79,9 +81,9 @@ fn print_info(listen_port: u16, peer_port: u16) {
 }
 
 fn get_peer_hostnames(parsed_argument: HashMap<String, String>, peer_port: u16) -> Vec<String> {
-    parsed_argument.get(INITIAL_CLUSTER)
-        .unwrap().split(",")
-        .map(|it| format!("{}:{}", it, peer_port))
+    parsed_argument.get(INITIAL_CLUSTER).or(Some(&"n1,n2,n3".to_string())).expect("Missing initial cluster")
+        .split(",")
+        .map(|it| format!("http://{}:{}", it, peer_port))
         .collect()
 }
 

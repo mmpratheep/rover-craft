@@ -65,6 +65,7 @@ impl Node {
     }
 
     async fn get_channel(address: &String) -> Channel {
+        println!("Channel to connect: {}",address);
         let time_out = 500;
          match Channel::from_shared(address.clone()) {
             Ok(endpoint) => endpoint,
@@ -97,11 +98,13 @@ impl Node {
             }
             NetworkNode::RemoteStore(remote_store) => {
                 let response = Self::write_remote_store(remote_store.clone(), partition_id, is_leader, probe).await;
+                println!("Starting Remote write call");
                 match response {
                     Ok(_val) => {
                         Ok(())
                     }
                     Err(err) => {
+                        print!("{}", err);
                         Err(err)
                     }
                 }
@@ -130,7 +133,7 @@ impl Node {
                 Ok(Some(Probe::from_probe_proto(val.into_inner())))
             }
             Err(err) => {
-                println!("Err from remote read: {}", err);
+                eprintln!("Err from remote read: {}", err);
                 return Self::parse_error(err);
             }
         };

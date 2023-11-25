@@ -1,4 +1,5 @@
-use std::sync::{Arc, LockResult, RwLock};
+use std::sync::{Arc};
+use std::sync::RwLock;
 use log::{error, warn};
 use tonic::{Request, Response, Status};
 use crate::cluster::hash::hash;
@@ -7,7 +8,7 @@ use crate::grpc::node::Node;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::nodes::NodeManager;
 use crate::grpc::service::cluster::{Empty, AnnounceAliveRequest};
-use crate::grpc::service::cluster::partition_server::Partition;
+use crate::grpc::service::cluster::partition_proto_server::PartitionProto;
 use crate::store::memory_store::MemoryStore;
 
 
@@ -17,7 +18,7 @@ pub(crate) struct PartitionService {
     leader_nodes: RwLock<Vec<LeaderNode>>,
     follower_nodes: RwLock<Vec<Arc<Node>>>,
     partition_size: usize,
-    nodes: Arc<NodeManager>,
+    pub nodes: Arc<NodeManager>,
 }
 
 impl PartitionService {
@@ -26,16 +27,16 @@ impl PartitionService {
             Self::initialise_partitions(nodes.nodes.clone());
         println!("leaders: {:?}",leaders);
         println!("followers: {:?}",followers);
-        println!("partition size: {:?}",nodes.nodes.len());
+        println!("partition size: {:?}",partition_size);
         PartitionService {
             leader_nodes: RwLock::new(leaders),
-            follower_nodes: RwLock::new((followers)),
+            follower_nodes: RwLock::new(followers),
             partition_size,
             nodes,
         }
     }
 
-    pub fn get_leader_partition(&self, partition_id: usize) -> Arc<Node> {
+    pub async fn get_leader_partition(&self, partition_id: usize) -> Arc<Node> {
         let leaders;
         {
             leaders = self.leader_nodes.read().unwrap();
@@ -43,7 +44,7 @@ impl PartitionService {
             return leader_ref.node.clone();
         }
     }
-    pub fn get_follower_partition(&self, partition_id: usize) -> Arc<Node> {
+    pub async fn get_follower_partition(&self, partition_id: usize) -> Arc<Node> {
         let followers;
         {
             followers = self.follower_nodes.read().unwrap();
@@ -70,7 +71,7 @@ impl PartitionService {
         return (leader_nodes, follower_nodes, partition_size);
     }
 
-    pub fn get_leader_delta_data(&self, partition_id: usize) -> Option<Arc<MemoryStore>> {
+    pub async fn get_leader_delta_data(&self, partition_id: usize) -> Option<Arc<MemoryStore>> {
         let leaders = self.leader_nodes.read().unwrap();
         {
             let leader_ref = leaders.get(partition_id)
@@ -79,7 +80,7 @@ impl PartitionService {
         }
     }
 
-    pub fn get_partition_nodes(&self, probe_id: &String) -> (LeaderNode, Arc<Node>, usize) {
+    pub async fn get_partition_nodes(&self, probe_id: &String) -> (LeaderNode, Arc<Node>, usize) {
         let leaders;
         let followers;
         {
@@ -97,7 +98,7 @@ impl PartitionService {
         }
     }
 
-    pub(crate) fn balance_partitions_and_write_delta_data(&mut self) {
+    pub(crate) async fn balance_partitions_and_write_delta_data(&mut self) {
         let leader_nodes = self.leader_nodes.read().unwrap();
 
         let follower_nodes = self.follower_nodes.read().unwrap();
@@ -132,7 +133,7 @@ impl PartitionService {
 }
 
 #[tonic::async_trait]
-impl Partition for PartitionService {
+impl PartitionProto for PartitionService {
     async fn make_node_alive_not_serving(&self, request: Request<AnnounceAliveRequest>) -> Result<Response<Empty>, Status> {
         //todo
         let req_data = request.into_inner();

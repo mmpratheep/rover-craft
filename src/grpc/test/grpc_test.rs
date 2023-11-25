@@ -10,23 +10,20 @@ mod tests {
 
     async fn setup() -> Node {
         //toto
-        match Node::new("http://localhost:9001".to_string()).await {
-            Ok(val) => val,
-            Err(err) => panic!("...: {:?}", err)
-        }
+        Node::new("http://localhost:9001".to_string()).await
     }
 
     #[test]
     async fn should_write_probe_data() {
         let node = setup().await;
-        let result = node.write_remote_store(Probe {
+        let result = node.write_probe_to_store(0,true,&Probe {
             probe_id: "id2".to_string(),
             event_id: "9707d6a1-61b5-11ec-9f10-0800200c9a62".to_string(),
             event_date_time: 1699082509235,
             data: "some random data".to_string(),
         }).await;
-        let response = result.unwrap().into_inner();
-        assert_eq!(true, response.confirmation);
+        let response = result.unwrap();
+        // assert_eq!(true, response.confirmation);
     }
 
     #[test]
@@ -43,7 +40,7 @@ mod tests {
     #[test]
     async fn should_read_probe_data_return_not_found_status() {
         let node = setup().await;
-        let result = node.read_remote_store("id3".to_string()).await;
+        let result = node.read_probe_from_store(0,true,&"id3".to_string()).await;
         assert_eq!(tonic::Code::NotFound, result.unwrap_err().code());
     }
 }

@@ -134,15 +134,15 @@ pub mod health_check_client {
     }
 }
 /// Generated client implementations.
-pub mod partition_client {
+pub mod partition_proto_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
-    pub struct PartitionClient<T> {
+    pub struct PartitionProtoClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl PartitionClient<tonic::transport::Channel> {
+    impl PartitionProtoClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -153,7 +153,7 @@ pub mod partition_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> PartitionClient<T>
+    impl<T> PartitionProtoClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -171,7 +171,7 @@ pub mod partition_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> PartitionClient<InterceptedService<T, F>>
+        ) -> PartitionProtoClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -185,7 +185,7 @@ pub mod partition_client {
                 http::Request<tonic::body::BoxBody>,
             >>::Error: Into<StdError> + Send + Sync,
         {
-            PartitionClient::new(InterceptedService::new(inner, interceptor))
+            PartitionProtoClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -233,11 +233,13 @@ pub mod partition_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cluster.Partition/MakeNodeAliveNotServing",
+                "/cluster.PartitionProto/MakeNodeAliveNotServing",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("cluster.Partition", "MakeNodeAliveNotServing"));
+                .insert(
+                    GrpcMethod::new("cluster.PartitionProto", "MakeNodeAliveNotServing"),
+                );
             self.inner.unary(req, path, codec).await
         }
         pub async fn make_node_alive_serving(
@@ -255,11 +257,13 @@ pub mod partition_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/cluster.Partition/MakeNodeAliveServing",
+                "/cluster.PartitionProto/MakeNodeAliveServing",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("cluster.Partition", "MakeNodeAliveServing"));
+                .insert(
+                    GrpcMethod::new("cluster.PartitionProto", "MakeNodeAliveServing"),
+                );
             self.inner.unary(req, path, codec).await
         }
     }
@@ -446,12 +450,12 @@ pub mod health_check_server {
     }
 }
 /// Generated server implementations.
-pub mod partition_server {
+pub mod partition_proto_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with PartitionServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with PartitionProtoServer.
     #[async_trait]
-    pub trait Partition: Send + Sync + 'static {
+    pub trait PartitionProto: Send + Sync + 'static {
         async fn make_node_alive_not_serving(
             &self,
             request: tonic::Request<super::AnnounceAliveRequest>,
@@ -462,7 +466,7 @@ pub mod partition_server {
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status>;
     }
     #[derive(Debug)]
-    pub struct PartitionServer<T: Partition> {
+    pub struct PartitionProtoServer<T: PartitionProto> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
@@ -470,7 +474,7 @@ pub mod partition_server {
         max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: Partition> PartitionServer<T> {
+    impl<T: PartitionProto> PartitionProtoServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -522,9 +526,9 @@ pub mod partition_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for PartitionServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for PartitionProtoServer<T>
     where
-        T: Partition,
+        T: PartitionProto,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -540,11 +544,11 @@ pub mod partition_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/cluster.Partition/MakeNodeAliveNotServing" => {
+                "/cluster.PartitionProto/MakeNodeAliveNotServing" => {
                     #[allow(non_camel_case_types)]
-                    struct MakeNodeAliveNotServingSvc<T: Partition>(pub Arc<T>);
+                    struct MakeNodeAliveNotServingSvc<T: PartitionProto>(pub Arc<T>);
                     impl<
-                        T: Partition,
+                        T: PartitionProto,
                     > tonic::server::UnaryService<super::AnnounceAliveRequest>
                     for MakeNodeAliveNotServingSvc<T> {
                         type Response = super::Empty;
@@ -558,7 +562,7 @@ pub mod partition_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as Partition>::make_node_alive_not_serving(
+                                <T as PartitionProto>::make_node_alive_not_serving(
                                         &inner,
                                         request,
                                     )
@@ -590,11 +594,11 @@ pub mod partition_server {
                     };
                     Box::pin(fut)
                 }
-                "/cluster.Partition/MakeNodeAliveServing" => {
+                "/cluster.PartitionProto/MakeNodeAliveServing" => {
                     #[allow(non_camel_case_types)]
-                    struct MakeNodeAliveServingSvc<T: Partition>(pub Arc<T>);
+                    struct MakeNodeAliveServingSvc<T: PartitionProto>(pub Arc<T>);
                     impl<
-                        T: Partition,
+                        T: PartitionProto,
                     > tonic::server::UnaryService<super::AnnounceAliveRequest>
                     for MakeNodeAliveServingSvc<T> {
                         type Response = super::Empty;
@@ -608,7 +612,10 @@ pub mod partition_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as Partition>::make_node_alive_serving(&inner, request)
+                                <T as PartitionProto>::make_node_alive_serving(
+                                        &inner,
+                                        request,
+                                    )
                                     .await
                             };
                             Box::pin(fut)
@@ -652,7 +659,7 @@ pub mod partition_server {
             }
         }
     }
-    impl<T: Partition> Clone for PartitionServer<T> {
+    impl<T: PartitionProto> Clone for PartitionProtoServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -664,7 +671,7 @@ pub mod partition_server {
             }
         }
     }
-    impl<T: Partition> Clone for _Inner<T> {
+    impl<T: PartitionProto> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(Arc::clone(&self.0))
         }
@@ -674,7 +681,7 @@ pub mod partition_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: Partition> tonic::server::NamedService for PartitionServer<T> {
-        const NAME: &'static str = "cluster.Partition";
+    impl<T: PartitionProto> tonic::server::NamedService for PartitionProtoServer<T> {
+        const NAME: &'static str = "cluster.PartitionProto";
     }
 }

@@ -6,7 +6,7 @@ service HealthCheck {
   rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
 }
 
-service Partition{
+service PartitionProto{
   rpc MakeNodeAliveNotServing (AnnounceAliveRequest) returns (Empty);
   rpc MakeNodeAliveServing (AnnounceAliveRequest) returns (Empty);
 }

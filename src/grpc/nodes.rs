@@ -33,6 +33,11 @@ impl NodeManager {
         self.change_node_state(node_host, NodeStatus::AliveServing);
     }
 
+    pub fn is_current_node_down(&self) -> bool {
+        self.get_peers().iter()
+            .all(|node| node.node_status == NodeStatus::Dead)
+    }
+
     pub fn make_node_dead(&self, node_host: &String) {
         self.change_node_state(node_host, NodeStatus::Dead);
     }
@@ -62,7 +67,7 @@ impl NodeManager {
         };
     }
 
-    pub fn get_nodes(&self) -> Vec<&Arc<Node>> {
+    pub fn get_peers(&self) -> Vec<&Arc<Node>> {
         self.nodes.iter()
           .filter(|node| !node.is_current_node())
             .collect()
