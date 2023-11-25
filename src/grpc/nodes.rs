@@ -20,7 +20,6 @@ impl NodeManager {
             );
         }
         nodes.sort_by_key(|it| it.host_name.clone());
-        println!("nodes: {:?}",nodes);
         NodeManager {
             nodes
         }
@@ -32,6 +31,10 @@ impl NodeManager {
 
     pub fn make_node_alive_and_serving(&self, node_host: &String) {
         self.change_node_state(node_host, NodeStatus::AliveServing);
+    }
+
+    pub fn make_node_dead(&self, node_host: &String) {
+        self.change_node_state(node_host, NodeStatus::Dead);
     }
 
     pub fn make_node_alive_and_not_serving(&self, node_host: &String) {
@@ -61,7 +64,7 @@ impl NodeManager {
 
     pub fn get_nodes(&self) -> Vec<&Arc<Node>> {
         self.nodes.iter()
-          .filter(|node| !node.is_current_node())
+          //.filter(|node| !node.is_current_node())
             .collect()
 
     }

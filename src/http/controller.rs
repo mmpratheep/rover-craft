@@ -26,6 +26,6 @@ pub async fn setup_controller(port : u16, store : Arc<PartitionManager>) {
         .or(get_probe_route);
 
      return warp::serve(routes)
-        .run(([127, 0, 0, 1], port))
+        .run(([0,0,0,0], port))
          .await
 }

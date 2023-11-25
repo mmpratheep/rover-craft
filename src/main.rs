@@ -3,6 +3,7 @@ use std::env::Args;
 use std::fs::File;
 use std::io::Write;
 use std::{env, process};
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
@@ -38,7 +39,7 @@ async fn main() {
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).expect("Missing listen-peer-urls"));
 
     // get peers, every .5 second check health
-    let address = format!("[::1]:{}", peer_port).parse().unwrap();
+    let address = format!("0.0.0.0:{}", peer_port).parse().unwrap();
     let peer_host_names = get_peer_hostnames(parsed_argument, peer_port);
 
     print!("{}",peer_host_names[0]);
@@ -49,10 +50,10 @@ async fn main() {
     });
     let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
 
+    let health_check_future = tokio::spawn(HealthCheckService::start_health_check(node_manager.clone()));
+
 
     let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
-    let nm = node_manager.clone();
-        HealthCheckService::new(nm).start_health_check().await;
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
@@ -61,8 +62,7 @@ async fn main() {
 
     print_info(listen_port, peer_port);
 
-
-    tokio::try_join!(grpc_server, http_server);
+    tokio::try_join!(grpc_server, http_server, health_check_future);
 }
 
 fn print_info(listen_port: u16, peer_port: u16) {
