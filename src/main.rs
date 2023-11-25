@@ -28,6 +28,7 @@ static INITIAL_CLUSTER: &str = "initial-cluster";
 async fn main() {
     write_pid();
     let parsed_argument = parse_args(env::args());
+    print!("Args : {:?}",parsed_argument);
     let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).expect("Missing listen-client-urls"));
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).expect("Missing listen-peer-urls"));
     let address = format!("[::1]:{}", peer_port).parse().unwrap();

@@ -1,2 +1,2 @@
-FROM arm64v8/debian:bullseye
+FROM jgoerzen/debian-base-standard:bullseye
 COPY ./rovercraft /usr/bin/rovercraft

@@ -22,14 +22,15 @@ pub(crate) struct PartitionService {
 
 impl PartitionService {
     pub fn new(nodes: NodeManager) -> Self {
-        let (leaders, followers) = Self::initialise_partitions(nodes.nodes.clone());
+        let (leaders, followers, partition_size) =
+            Self::initialise_partitions(nodes.nodes.clone());
         println!("leaders: {:?}",leaders);
         println!("followers: {:?}",followers);
         println!("partition size: {:?}",nodes.nodes.len());
         PartitionService {
             leader_nodes: RwLock::new(leaders),
             follower_nodes: RwLock::new((followers)),
-            partition_size: nodes.nodes.len(),
+            partition_size,
             nodes,
         }
     }
@@ -51,12 +52,12 @@ impl PartitionService {
         }
     }
 
-    pub fn initialise_partitions(mut nodes: Vec<Arc<Node>>) -> (Vec<LeaderNode>, Vec<Arc<Node>>) {
+    pub fn initialise_partitions(mut nodes: Vec<Arc<Node>>) -> (Vec<LeaderNode>, Vec<Arc<Node>>, usize) {
         //distributes partition evenly across nodes with replication factor n-1
         let replica = nodes.len() - 1;
-        let size = nodes.len() * replica;
-        let mut leader_nodes: Vec<LeaderNode> = Vec::with_capacity(size);
-        let mut follower_nodes: Vec<Arc<Node>> = Vec::with_capacity(size);
+        let partition_size = nodes.len() * replica;
+        let mut leader_nodes: Vec<LeaderNode> = Vec::with_capacity(partition_size);
+        let mut follower_nodes: Vec<Arc<Node>> = Vec::with_capacity(partition_size);
         if replica < nodes.len() {
             let mut index: usize = 0;
             for node in &nodes {
@@ -66,7 +67,7 @@ impl PartitionService {
                 index += replica;
             }
         }
-        return (leader_nodes, follower_nodes);
+        return (leader_nodes, follower_nodes, partition_size);
     }
 
     pub fn get_leader_delta_data(&self, partition_id: usize) -> Option<Arc<MemoryStore>> {
