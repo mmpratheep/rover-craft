@@ -51,20 +51,14 @@ async fn main() {
 
 
     let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
-
-    let health_check_service = Arc::new(HealthCheckService{
-        nodes: node_manager.clone()
-    });
-
-    let inner_health_check_service = Arc::clone(&health_check_service).lock().unwrap();
+    let nm = node_manager.clone();
+        HealthCheckService::new(nm).start_health_check().await;
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .add_service(ProbeSyncServer::new(probe_sync_service))
-        .add_service(HealthCheckServer::new(inner_health_check_service.clone()))
+        .add_service(HealthCheckServer::new(HealthCheckService::new(node_manager.clone())))
         .serve(address));
 
-
-    let health_check_task = tokio::spawn(inner_health_check_service.start_health_check().await);
     print_info(listen_port, peer_port);
 
 

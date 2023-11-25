@@ -1,5 +1,6 @@
 use std::ffi::OsString;
 use std::time::Duration;
+use log::{debug, log};
 use tonic::{Code, Response, Status};
 use tonic::codegen::tokio_stream::StreamExt;
 use tonic::transport::{Channel, Error};
@@ -34,7 +35,7 @@ impl Node {
 
     fn is_same_node(node_ip: &String) -> bool {
         let current_node_host_name = Self::get_current_node_hostname().into_string().unwrap();
-        println!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
+        debug!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
         node_ip.contains(&current_node_host_name)
     }
 

@@ -1,3 +1,4 @@
+use std::slice::Iter;
 use std::sync::Arc;
 use log::error;
 use crate::grpc::node::Node;
@@ -58,10 +59,19 @@ impl NodeManager {
         };
     }
 
+    pub fn get_nodes(&self) -> Vec<&Arc<Node>> {
+        self.nodes.iter()
+          .filter(|node| !node.is_current_node())
+            .collect()
+
+    }
+
     fn get_single_node(&self, node_host: &String) -> Option<&Arc<Node>> {
         self.nodes.iter()
             .find(|&node|
                 node.host_name == *node_host
             )
     }
+
+
 }
