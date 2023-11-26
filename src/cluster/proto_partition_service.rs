@@ -26,7 +26,7 @@ impl PartitionProto for ProtoPartitionService {
                         for i in req_data.partitions {
                             let index = i as usize;
                             f_nodes[index] = l_nodes[index].node.clone();
-                            l_nodes[index].node = read_guard.nodes.get_node(node_host_name.clone()).unwrap();
+                            l_nodes[index].node = read_guard.nodes.get_node(&node_host_name).unwrap();
                             //todo check whether it handles properly for the second node assignment
                         }
                     }

@@ -23,9 +23,9 @@ impl PartitionService {
     pub fn new(nodes: Arc<NodeManager>) -> Self {
         let (leaders, followers, partition_size) =
             Self::initialise_partitions(nodes.nodes.clone());
-        println!("leaders: {:?}",leaders);
-        println!("followers: {:?}",followers);
-        println!("partition size: {:?}",partition_size);
+        println!("leaders: {:?}", leaders);
+        println!("followers: {:?}", followers);
+        println!("partition size: {:?}", partition_size);
         PartitionService {
             leader_nodes: RwLock::new(leaders),
             follower_nodes: RwLock::new(followers),
@@ -42,6 +42,20 @@ impl PartitionService {
             return leader_ref.node.clone();
         }
     }
+
+    pub fn get_leader_partitions(&self, hostname: &String) -> Vec<u32> {
+        let leaders;
+        {
+            leaders = self.leader_nodes.read().unwrap();
+            let leader_partitions = leaders.iter()
+                .enumerate()
+                .filter(|(_,&ref leader_node)| *leader_node.node.host_name == *hostname)
+                .map(|(index, _)| index as u32)
+                .collect();
+            leader_partitions
+        }
+    }
+
     pub async fn get_follower_partition(&self, partition_id: usize) -> Arc<Node> {
         let followers;
         {
@@ -86,13 +100,13 @@ impl PartitionService {
             let partition_id = hash % self.partition_size;
             leaders = self.leader_nodes.read().unwrap();
             followers = self.follower_nodes.read().unwrap();
-            println!("leader partition id: {}",partition_id);
-            println!("follower partition id: {}",partition_id);
+            println!("leader partition id: {}", partition_id);
+            println!("follower partition id: {}", partition_id);
             let leader_ref = leaders.get(partition_id).expect("No leader to get");
             let follower_ref = followers.get(partition_id).expect("No follower to get");
 
             // Release the locks here, ensuring that the references are valid
-            (leader_ref.clone(), follower_ref.clone(),partition_id)
+            (leader_ref.clone(), follower_ref.clone(), partition_id)
         }
     }
 

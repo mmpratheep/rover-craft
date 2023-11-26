@@ -1,3 +1,4 @@
+use std::fs::read;
 use std::sync::{Arc};
 use tokio::sync::RwLock;
 use std::time::Duration;
@@ -39,8 +40,16 @@ impl HealthCheckService {
                     Ok(_) => {
                         debug!("Received response");
                         if node.node_status == Dead {
-                            partition_service.read().await.nodes.make_node_alive_and_serving(&node.host_name)
-
+                            let read_guard = partition_service.read()
+                                .await;
+                            let alive_peer_node = read_guard.nodes.get_node(&node.host_name);
+                            read_guard.nodes.make_node_alive_and_serving(&node.host_name);
+                            let current_node = read_guard.nodes.get_current_node().unwrap();
+                            let current_node_leader_partitions = read_guard.get_leader_partitions(&current_node.host_name);
+                            //todo give current hostname
+                            alive_peer_node.unwrap().make_node_alive_not_serving(&current_node.host_name, current_node_leader_partitions).await;
+                            //todo catchup the remaining things
+                            //todo make alive and serving
                         }
                     }
                     Err(err) => {

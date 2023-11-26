@@ -55,8 +55,8 @@ impl NodeManager {
             );
     }
 
-    pub fn get_node(&self, node_host: String) -> Option<Arc<Node>> {
-        return match self.get_single_node(&node_host) {
+    pub fn get_node(&self, node_host: &String) -> Option<Arc<Node>> {
+        return match self.get_single_node(node_host) {
             Some(node) => {
                 Some(Arc::clone(node))
             }
@@ -67,11 +67,14 @@ impl NodeManager {
         };
     }
 
+    pub fn get_current_node(&self) -> Option<&Arc<Node>> {
+        self.nodes.iter().find(|&node| node.is_current_node())
+    }
+
     pub fn get_peers(&self) -> Vec<&Arc<Node>> {
         self.nodes.iter()
-          .filter(|node| !node.is_current_node())
+            .filter(|node| !node.is_current_node())
             .collect()
-
     }
 
     fn get_single_node(&self, node_host: &String) -> Option<&Arc<Node>> {
@@ -80,6 +83,4 @@ impl NodeManager {
                 node.host_name == *node_host
             )
     }
-
-
 }
