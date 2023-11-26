@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use log::{debug};
 use tokio::time::interval;
-use tokio::try_join;
 use tonic::{Request, Response, Status};
 use crate::cluster::partition_service::PartitionService;
 
@@ -74,30 +73,33 @@ impl HealthCheckService {
                 let current_node_leader_partition_ids = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
                 let current_node_follower_partition_ids = partition_service_read_guard.get_follower_partition_ids(&current_node.host_name);
 
-                let peer_delta_leaders: Vec<_> = current_node_leader_partition_ids.into_iter()
-                    .map(|partition_id| {
-                        partition_service_read_guard.get_follower_node(partition_id.clone() as usize)
-                    })
-                    .collect();
-
-                let peer_delta_followers: Vec<_> = current_node_follower_partition_ids.clone().into_iter()
-                    .map(|partition_id| {
-                        partition_service_read_guard.get_leader_node(partition_id.clone() as usize)
-                    })
-                    .collect();
-
                 //todo perform the below code for every peer_delta_followers and peer_delta_leaders
-                let result = partition_service_read_guard.get_leader_node(current_node_follower_partition_ids.get(0).unwrap().clone() as usize).await
-                    .get_delta_data_from_peer(current_node_follower_partition_ids[0].clone()).await;
 
-                match result {
-                    Ok(delta_data) => {
-                        let follower = partition_service_read_guard.get_follower_node(current_node_follower_partition_ids[0].clone() as usize).await;
-                        follower.update_with_delta_data(delta_data.into_inner());
+                for partition_id in current_node_leader_partition_ids.iter() {
+                    let result = partition_service_read_guard.get_follower_node(partition_id.clone() as usize).await
+                        .get_delta_data_from_peer(partition_id.clone()).await;
+
+                    match result {
+                        Ok(delta_data) => {
+                            let leader = partition_service_read_guard.get_leader_node(partition_id.clone() as usize).await;
+                            leader.update_with_delta_data(delta_data.into_inner());
+                        }
+                        Err(_) => {}
                     }
-                    Err(_) => {}
                 }
 
+                for partition_id in current_node_follower_partition_ids.iter() {
+                    let result = partition_service_read_guard.get_leader_node(partition_id.clone() as usize).await
+                        .get_delta_data_from_peer(partition_id.clone()).await;
+
+                    match result {
+                        Ok(delta_data) => {
+                            let follower = partition_service_read_guard.get_follower_node(partition_id.clone() as usize).await;
+                            follower.update_with_delta_data(delta_data.into_inner());
+                        }
+                        Err(_) => {}
+                    }
+                }
 
                 // let change_state: Vec<_> = partition_service_read_guard.nodes.get_peers().into_iter()
                 //     .map(|peer|
