@@ -21,7 +21,8 @@ message HealthCheckResponse {
 
 message AnnounceAliveRequest{
   string host_name = 1;
-  repeated uint32 partitions = 2;
+  repeated uint32 leader_partitions = 2;
+  repeated uint32 follower_partitions = 3;
 }
 
 message Empty{}

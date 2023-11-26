@@ -16,7 +16,9 @@ pub struct AnnounceAliveRequest {
     #[prost(string, tag = "1")]
     pub host_name: ::prost::alloc::string::String,
     #[prost(uint32, repeated, tag = "2")]
-    pub partitions: ::prost::alloc::vec::Vec<u32>,
+    pub leader_partitions: ::prost::alloc::vec::Vec<u32>,
+    #[prost(uint32, repeated, tag = "3")]
+    pub follower_partitions: ::prost::alloc::vec::Vec<u32>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

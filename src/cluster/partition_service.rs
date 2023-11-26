@@ -43,7 +43,7 @@ impl PartitionService {
         }
     }
 
-    pub fn get_leader_partitions(&self, hostname: &String) -> Vec<u32> {
+    pub fn get_leader_partition_ids(&self, hostname: &String) -> Vec<u32> {
         let leaders;
         {
             leaders = self.leader_nodes.read().unwrap();
@@ -56,11 +56,12 @@ impl PartitionService {
         }
     }
 
-    pub async fn get_follower_partition(&self, partition_id: usize) -> Arc<Node> {
+    pub async fn get_follower_node(&self, partition_id: usize) -> Arc<Node> {
         let followers;
         {
             followers = self.follower_nodes.read().unwrap();
-            let leader_ref = followers.get(partition_id).expect("No leader to get");
+            let leader_ref = followers.get(partition_id).expect("No follower to get");
+            //todo remove clone
             return leader_ref.clone();
         }
     }

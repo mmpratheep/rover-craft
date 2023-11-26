@@ -23,7 +23,7 @@ impl PartitionProto for ProtoPartitionService {
             Ok(mut l_nodes) => {
                 match read_guard.follower_nodes.write() {
                     Ok(mut f_nodes) => {
-                        for i in req_data.partitions {
+                        for i in req_data.leader_partitions {
                             let index = i as usize;
                             f_nodes[index] = l_nodes[index].node.clone();
                             l_nodes[index].node = read_guard.nodes.get_node(&node_host_name).unwrap();
@@ -49,8 +49,11 @@ impl PartitionProto for ProtoPartitionService {
         read_guard.nodes.make_node_alive_and_not_serving(&node_host_name);
         match read_guard.leader_nodes.write() {
             Ok(mut l_nodes) => {
-                for i in req_data.partitions {
+                for i in req_data.leader_partitions {
                     l_nodes[i as usize].remove_delta_data();
+                }
+                for i in req_data.follower_partitions{
+                    l_nodes[i as usize].remove_delta_data()
                 }
             }
             Err(err) => {
