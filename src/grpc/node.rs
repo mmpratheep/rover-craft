@@ -109,7 +109,7 @@ impl Node {
             .connect_lazy()
     }
 
-    pub async fn make_node_alive_not_serving(&self, hostname: &String, leader_partitions: &Vec<u32>) {
+    pub async fn announce_me_alive_not_serving(&self, hostname: &String, leader_partitions: &Vec<u32>) {
         if self.proto_partition_client.is_some() {
             println!("Making node alive and not serving... {}", &hostname);
             let request = tonic::Request::new(AnnounceAliveNotServingRequest {
@@ -126,7 +126,7 @@ impl Node {
         }
     }
 
-    pub async fn make_node_alive_and_serving(&self, hostname: &String, leader_partitions: Vec<u32>, follower_partitions: Vec<u32>) {
+    pub async fn announce_me_alive_and_serving(&self, hostname: &String, leader_partitions: Vec<u32>, follower_partitions: Vec<u32>) {
         if self.proto_partition_client.is_some() {
             println!("Making node alive and serving... {}", &hostname);
             let request = tonic::Request::new(AnnounceAliveServingRequest {
@@ -150,7 +150,7 @@ impl Node {
                 Ok(store.get_probe(&probe_id))
             }
             NetworkNode::RemoteStore(remote_store) => {
-                println!("Starting Remote read call");
+                println!("Starting Remote read call: ");
                 let response = Self::read_remote_store(remote_store.clone(), partition_id, is_leader, probe_id).await;
                 Self::get_probe_from_response(response)
             }
@@ -200,7 +200,7 @@ impl Node {
                 Ok(Some(Probe::from_probe_proto(val.into_inner())))
             }
             Err(err) => {
-                eprintln!("Err from remote read: {}", err);
+                eprintln!("Err from remote read for: {}", err);
                 return Self::parse_error(err);
             }
         };

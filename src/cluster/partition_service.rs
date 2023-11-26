@@ -154,6 +154,8 @@ impl PartitionService {
                 }
             }
         }
+        println!("After rebalance: leaders: {:?}",leader_nodes);
+        println!("After rebalance: followers: {:?}",follower_nodes);
     }
 }
 

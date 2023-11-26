@@ -10,7 +10,6 @@ use crate::cluster::partition_service::PartitionService;
 use crate::grpc::node_status::NodeStatus::Dead;
 use crate::grpc::service::cluster::{HealthCheckRequest, HealthCheckResponse};
 use crate::grpc::service::cluster::health_check_server::HealthCheck;
-use crate::grpc::service::probe_sync::ProbePartition;
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct HealthCheckService {}
@@ -48,69 +47,86 @@ impl HealthCheckService {
                             partition_service_read_guard.nodes.make_node_alive_and_serving(&node.host_name);
                             let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
                             let current_node_leader_partitions = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
-                            alive_peer_node.unwrap().make_node_alive_not_serving(&current_node.host_name, &current_node_leader_partitions).await;
+                            println!("Announce alive and not serving");
+                            alive_peer_node.unwrap().announce_me_alive_not_serving(&current_node.host_name, &current_node_leader_partitions).await;
                         }
                     }
                     Err(err) => {
                         re_balance_partitions = true;
-                        debug!("Error occurred while doing healthcheck: {}", err);
+                        debug!("Health check error: {}",err);
+                        println!("Couldn't connect to node {}",node.host_name);
                         partition_service.read().await.nodes.make_node_dead(&node.host_name);
+                        println!("After making node dead {:?}",partition_service.read().await.nodes)
                     }
                 }
             }
             if re_balance_partitions {
+                println!("Seems like node is down");
                 if partition_service.read().await.nodes.is_current_node_down() {
+                    println!("Marking current node down");
                     interval = tokio::time::interval(Duration::from_millis(100));
                 } else {
+                    println!("Re-balancing partitions");
                     partition_service.write().await.balance_partitions_and_write_delta_data().await;
                 }
             }
 
             if handle_recovery {
+                println!("Handling recovery");
                 let partition_service_read_guard = partition_service.read()
                     .await;
                 let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
                 let current_node_leader_partition_ids = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
                 let current_node_follower_partition_ids = partition_service_read_guard.get_follower_partition_ids(&current_node.host_name);
 
-                //todo perform the below code for every peer_delta_followers and peer_delta_leaders
+                //todo IMP optimise: get delta data in parallel from other nodes
+                println!("Catching up the leader partitions");
 
-                for partition_id in current_node_leader_partition_ids.iter() {
-                    let result = partition_service_read_guard.get_follower_node(partition_id.clone() as usize).await
+                for partition_id in current_node_leader_partition_ids.clone().iter() {
+                    let follower_partition = partition_service_read_guard.get_follower_node(partition_id.clone() as usize).await;
+                    println!("partition_id: {}, partition: {}", &partition_id, &follower_partition.host_name);
+                    let result = follower_partition
                         .get_delta_data_from_peer(partition_id.clone()).await;
 
                     match result {
                         Ok(delta_data) => {
+                            println!("Received delta data, updating the partition");
                             let leader = partition_service_read_guard.get_leader_node(partition_id.clone() as usize).await;
                             leader.update_with_delta_data(delta_data.into_inner());
+                            println!("updated the partition");
                         }
-                        Err(_) => {}
+                        Err(err) => {
+                            println!("Err Delta data leader: {}", err)
+                        }
                     }
                 }
+                println!("Catching up the follower partitions");
 
-                for partition_id in current_node_follower_partition_ids.iter() {
-                    let result = partition_service_read_guard.get_leader_node(partition_id.clone() as usize).await
+                for partition_id in current_node_follower_partition_ids.clone().iter() {
+                    let leader_partitions = partition_service_read_guard.get_leader_node(partition_id.clone() as usize).await;
+                    println!("partition_id: {}, partition: {}", &partition_id, &leader_partitions.host_name);
+                    let result = leader_partitions
                         .get_delta_data_from_peer(partition_id.clone()).await;
 
                     match result {
                         Ok(delta_data) => {
+                            println!("Received delta data, updating the partition");
                             let follower = partition_service_read_guard.get_follower_node(partition_id.clone() as usize).await;
                             follower.update_with_delta_data(delta_data.into_inner());
+                            println!("updated the partition");
                         }
-                        Err(_) => {}
+                        Err(err) => {
+                            println!("Err Delta data follower: {}", err)
+                        }
                     }
                 }
-
-                // let change_state: Vec<_> = partition_service_read_guard.nodes.get_peers().into_iter()
-                //     .map(|peer|
-                //         peer.make_node_alive_and_serving(
-                //             &current_node.host_name,
-                //             current_node_leader_partition_ids,
-                //             current_node_follower_partition_ids)
-                //     ).collect();
-                //todo catchup the follower partitions
-                //todo catchup the leader partitions
-                //todo make alive and serving
+                println!("Announce alive and serving");
+                for peer in partition_service.read().await.nodes.get_peers() {
+                    peer.announce_me_alive_and_serving(
+                        &current_node.host_name,
+                        current_node_leader_partition_ids.clone(),
+                        current_node_follower_partition_ids.clone()).await;
+                }
             }
         }
     }
