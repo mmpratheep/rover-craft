@@ -72,9 +72,9 @@ impl PartitionService {
         let followers;
         {
             followers = self.follower_nodes.read().unwrap();
-            let leader_ref = followers.get(partition_id).expect("No follower to get");
+            let followers_ref = followers.get(partition_id).expect("No follower to get");
             //todo remove clone
-            return leader_ref.clone();
+            return followers_ref.clone();
         }
     }
 

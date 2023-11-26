@@ -9,10 +9,10 @@ use warp::hyper::client::connect::Connect;
 use crate::cluster::network_node::NetworkNode;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
-use crate::grpc::service::cluster::{AnnounceAliveServingRequest,AnnounceAliveNotServingRequest, HealthCheckRequest, HealthCheckResponse};
+use crate::grpc::service::cluster::{AnnounceAliveServingRequest, AnnounceAliveNotServingRequest, HealthCheckRequest, HealthCheckResponse};
 use crate::grpc::service::cluster::partition_proto_client::PartitionProtoClient;
 use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
-use crate::grpc::service::probe_sync::{ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};
+use crate::grpc::service::probe_sync::{PartitionRequest, ProbePartition, ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
@@ -49,6 +49,18 @@ impl Node {
         hostname::get().unwrap().to_os_string()
     }
 
+    pub fn update_with_delta_data(&self, partition : ProbePartition){
+        match &self.probe_store {
+            NetworkNode::LocalStore(store) => {
+                store.de_serialise_and_update(partition.probe_array);
+            }
+            NetworkNode::RemoteStore(_) => {
+                println!("The data is not present in the current node")
+            }
+        }
+
+    }
+
     pub(crate) async fn new(node_host_name: String) -> Self {
         if Self::is_same_node(&node_host_name) {
             return
@@ -66,6 +78,21 @@ impl Node {
             health_check_client: HealthCheckClient::new(Self::get_channel(&node_host_name).await),
             proto_partition_client: Some(PartitionProtoClient::new(Self::get_channel(&node_host_name).await)),
             node_status: NodeStatus::AliveServing,
+        }
+    }
+
+    pub async fn get_delta_data_from_peer(&self, partition_id: u32) -> Result<Response<ProbePartition>, Status> {
+        //todo making all uint in proto to common type
+        match &self.probe_store {
+            NetworkNode::RemoteStore(remote_store) => {
+                let request = tonic::Request::new(PartitionRequest {
+                    partition_id: partition_id as u64,
+                });
+                remote_store.clone().get_partition_data(request).await
+            }
+            NetworkNode::LocalStore(_) => {
+                Err(Status::internal("The data is already present in the current node"))
+            }
         }
     }
 
@@ -87,7 +114,7 @@ impl Node {
             println!("Making node alive and not serving... {}", &hostname);
             let request = tonic::Request::new(AnnounceAliveNotServingRequest {
                 host_name: hostname.clone(),
-                leader_partitions: leader_partitions.clone()
+                leader_partitions: leader_partitions.clone(),
             });
             let response = self.proto_partition_client.clone().unwrap().make_node_alive_not_serving(request).await;
             match response {
@@ -105,7 +132,7 @@ impl Node {
             let request = tonic::Request::new(AnnounceAliveServingRequest {
                 host_name: hostname.clone(),
                 leader_partitions,
-                follower_partitions
+                follower_partitions,
             });
             let response = self.proto_partition_client.clone().unwrap().make_node_alive_serving(request).await;
             match response {
