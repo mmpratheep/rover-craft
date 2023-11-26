@@ -4,6 +4,7 @@ use tokio::sync::RwLock as TrwLock;
 use log::error;
 use crate::cluster::partition_service::PartitionService;
 use crate::grpc::node::Node;
+use crate::grpc::node_status::NodeStatus;
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
@@ -24,7 +25,7 @@ impl PartitionManager {
             .await.write_probe_to_store(partition_id, true, &probe).await.expect("internal probe write failed");
     }
     async fn get_partition(&self, partition_id: usize, is_leader: bool) -> Arc<Node> {
-        if is_leader { self.partition_service.read().await.get_leader_partition(partition_id).await } else { self.partition_service.read().await.get_follower_partition(partition_id).await }
+        if is_leader { self.partition_service.read().await.get_leader_partition(partition_id).await } else { self.partition_service.read().await.get_follower_node(partition_id).await }
     }
 
     pub async fn make_node_down(&self, node: Node) {
@@ -78,16 +79,29 @@ impl PartitionManager {
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
         println!("leader: {:?}", leader_node);
         println!("follower: {:?}", follower_node);
-        let result = leader_node.write_probe_to_store(partition_id, &probe).await;
-        let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
-        return match result {
-            Ok(_probe_response) => {
-                Some(probe)
+        return if follower_node.node_status == NodeStatus::Dead {
+            let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
+            match result {
+                Ok(_probe_response) => {
+                    Some(probe)
+                }
+                Err(_err) => {
+                    None
+                }
             }
-            Err(_err) => {
-                None
+        } else {
+            let result = leader_node.node.write_probe_to_store(partition_id, true, &probe).await;
+            let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
+            //todo handle this res
+            match result {
+                Ok(_probe_response) => {
+                    Some(probe)
+                }
+                Err(_err) => {
+                    None
+                }
             }
-        };
+        }
     }
 
     pub async fn get_delta_data(&self, partition_id: usize) -> Option<Arc<MemoryStore>> {

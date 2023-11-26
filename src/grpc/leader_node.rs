@@ -14,7 +14,7 @@ pub struct LeaderNode {
 }
 
 impl LeaderNode {
-    pub(crate) async fn write_probe_to_store(&self, partition_id: usize, probe: &Probe) -> Result<(), Status> {
+    pub(crate) async fn write_probe_to_store_and_delta(&self, partition_id: usize, probe: &Probe) -> Result<(), Status> {
         if self.delta_data.is_some() {
             self.delta_data.clone().unwrap().save_probe(probe);
         }
