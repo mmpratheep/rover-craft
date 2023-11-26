@@ -4,12 +4,14 @@ use std::time::Duration;
 
 use log::{debug};
 use tokio::time::interval;
+use tokio::try_join;
 use tonic::{Request, Response, Status};
 use crate::cluster::partition_service::PartitionService;
 
 use crate::grpc::node_status::NodeStatus::Dead;
 use crate::grpc::service::cluster::{HealthCheckRequest, HealthCheckResponse};
 use crate::grpc::service::cluster::health_check_server::HealthCheck;
+use crate::grpc::service::probe_sync::ProbePartition;
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct HealthCheckService {}
@@ -57,7 +59,7 @@ impl HealthCheckService {
                     }
                 }
             }
-            if re_balance_partitions{
+            if re_balance_partitions {
                 if partition_service.read().await.nodes.is_current_node_down() {
                     interval = tokio::time::interval(Duration::from_millis(100));
                 } else {
@@ -65,21 +67,48 @@ impl HealthCheckService {
                 }
             }
 
-            if handle_recovery{
+            if handle_recovery {
                 let partition_service_read_guard = partition_service.read()
                     .await;
                 let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
-                let current_node_leader_partitions = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
-                let current_follower_partitions: Vec<_> = current_node_leader_partitions.into_iter()
-                    .map(| partition_id | {
+                let current_node_leader_partition_ids = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
+                let current_node_follower_partition_ids = partition_service_read_guard.get_follower_partition_ids(&current_node.host_name);
+
+                let peer_delta_leaders: Vec<_> = current_node_leader_partition_ids.into_iter()
+                    .map(|partition_id| {
                         partition_service_read_guard.get_follower_node(partition_id.clone() as usize)
                     })
                     .collect();
 
+                let peer_delta_followers: Vec<_> = current_node_follower_partition_ids.clone().into_iter()
+                    .map(|partition_id| {
+                        partition_service_read_guard.get_leader_node(partition_id.clone() as usize)
+                    })
+                    .collect();
+
+                //todo perform the below code for every peer_delta_followers and peer_delta_leaders
+                let result = partition_service_read_guard.get_leader_node(current_node_follower_partition_ids.get(0).unwrap().clone() as usize).await
+                    .get_delta_data_from_peer(current_node_follower_partition_ids[0].clone()).await;
+
+                match result {
+                    Ok(delta_data) => {
+                        let follower = partition_service_read_guard.get_follower_node(current_node_follower_partition_ids[0].clone() as usize).await;
+                        follower.update_with_delta_data(delta_data.into_inner());
+                    }
+                    Err(_) => {}
+                }
+
+
+                // let change_state: Vec<_> = partition_service_read_guard.nodes.get_peers().into_iter()
+                //     .map(|peer|
+                //         peer.make_node_alive_and_serving(
+                //             &current_node.host_name,
+                //             current_node_leader_partition_ids,
+                //             current_node_follower_partition_ids)
+                //     ).collect();
                 //todo catchup the follower partitions
                 //todo catchup the leader partitions
                 //todo make alive and serving
-
             }
         }
     }
