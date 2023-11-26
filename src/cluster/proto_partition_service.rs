@@ -3,7 +3,7 @@ use log::error;
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 use crate::cluster::partition_service::PartitionService;
-use crate::grpc::service::cluster::{AnnounceAliveRequest, Empty};
+use crate::grpc::service::cluster::{AnnounceAliveServingRequest, AnnounceAliveNotServingRequest, Empty};
 use crate::grpc::service::cluster::partition_proto_server::PartitionProto;
 
 #[derive(Debug, Default)]
@@ -13,7 +13,7 @@ pub struct ProtoPartitionService {
 
 #[tonic::async_trait]
 impl PartitionProto for ProtoPartitionService {
-    async fn make_node_alive_not_serving(&self, request: Request<AnnounceAliveRequest>) -> Result<Response<Empty>, Status> {
+    async fn make_node_alive_not_serving(&self, request: Request<AnnounceAliveNotServingRequest>) -> Result<Response<Empty>, Status> {
         //todo
         let req_data = request.into_inner();
         let node_host_name = req_data.host_name;
@@ -42,7 +42,7 @@ impl PartitionProto for ProtoPartitionService {
         Ok(Response::new(Empty {}))
     }
 
-    async fn make_node_alive_serving(&self, request: Request<AnnounceAliveRequest>) -> Result<Response<Empty>, Status> {
+    async fn make_node_alive_serving(&self, request: Request<AnnounceAliveServingRequest>) -> Result<Response<Empty>, Status> {
         let req_data = request.into_inner();
         let node_host_name = req_data.host_name;
         let read_guard = self.partition_service.read().await;

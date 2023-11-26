@@ -12,13 +12,21 @@ pub struct HealthCheckResponse {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct AnnounceAliveRequest {
+pub struct AnnounceAliveServingRequest {
     #[prost(string, tag = "1")]
     pub host_name: ::prost::alloc::string::String,
     #[prost(uint32, repeated, tag = "2")]
     pub leader_partitions: ::prost::alloc::vec::Vec<u32>,
     #[prost(uint32, repeated, tag = "3")]
     pub follower_partitions: ::prost::alloc::vec::Vec<u32>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AnnounceAliveNotServingRequest {
+    #[prost(string, tag = "1")]
+    pub host_name: ::prost::alloc::string::String,
+    #[prost(uint32, repeated, tag = "2")]
+    pub leader_partitions: ::prost::alloc::vec::Vec<u32>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -222,7 +230,7 @@ pub mod partition_proto_client {
         }
         pub async fn make_node_alive_not_serving(
             &mut self,
-            request: impl tonic::IntoRequest<super::AnnounceAliveRequest>,
+            request: impl tonic::IntoRequest<super::AnnounceAliveNotServingRequest>,
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status> {
             self.inner
                 .ready()
@@ -246,7 +254,7 @@ pub mod partition_proto_client {
         }
         pub async fn make_node_alive_serving(
             &mut self,
-            request: impl tonic::IntoRequest<super::AnnounceAliveRequest>,
+            request: impl tonic::IntoRequest<super::AnnounceAliveServingRequest>,
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status> {
             self.inner
                 .ready()
@@ -460,11 +468,11 @@ pub mod partition_proto_server {
     pub trait PartitionProto: Send + Sync + 'static {
         async fn make_node_alive_not_serving(
             &self,
-            request: tonic::Request<super::AnnounceAliveRequest>,
+            request: tonic::Request<super::AnnounceAliveNotServingRequest>,
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status>;
         async fn make_node_alive_serving(
             &self,
-            request: tonic::Request<super::AnnounceAliveRequest>,
+            request: tonic::Request<super::AnnounceAliveServingRequest>,
         ) -> std::result::Result<tonic::Response<super::Empty>, tonic::Status>;
     }
     #[derive(Debug)]
@@ -551,7 +559,7 @@ pub mod partition_proto_server {
                     struct MakeNodeAliveNotServingSvc<T: PartitionProto>(pub Arc<T>);
                     impl<
                         T: PartitionProto,
-                    > tonic::server::UnaryService<super::AnnounceAliveRequest>
+                    > tonic::server::UnaryService<super::AnnounceAliveNotServingRequest>
                     for MakeNodeAliveNotServingSvc<T> {
                         type Response = super::Empty;
                         type Future = BoxFuture<
@@ -560,7 +568,9 @@ pub mod partition_proto_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::AnnounceAliveRequest>,
+                            request: tonic::Request<
+                                super::AnnounceAliveNotServingRequest,
+                            >,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -601,7 +611,7 @@ pub mod partition_proto_server {
                     struct MakeNodeAliveServingSvc<T: PartitionProto>(pub Arc<T>);
                     impl<
                         T: PartitionProto,
-                    > tonic::server::UnaryService<super::AnnounceAliveRequest>
+                    > tonic::server::UnaryService<super::AnnounceAliveServingRequest>
                     for MakeNodeAliveServingSvc<T> {
                         type Response = super::Empty;
                         type Future = BoxFuture<
@@ -610,7 +620,7 @@ pub mod partition_proto_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::AnnounceAliveRequest>,
+                            request: tonic::Request<super::AnnounceAliveServingRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {

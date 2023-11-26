@@ -9,7 +9,7 @@ use warp::hyper::client::connect::Connect;
 use crate::cluster::network_node::NetworkNode;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
-use crate::grpc::service::cluster::{AnnounceAliveRequest, HealthCheckRequest, HealthCheckResponse};
+use crate::grpc::service::cluster::{AnnounceAliveServingRequest,AnnounceAliveNotServingRequest, HealthCheckRequest, HealthCheckResponse};
 use crate::grpc::service::cluster::partition_proto_client::PartitionProtoClient;
 use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
 use crate::grpc::service::probe_sync::{ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};
@@ -82,12 +82,12 @@ impl Node {
             .connect_lazy()
     }
 
-    pub async fn make_node_alive_not_serving(&self, hostname: &String, partitions: Vec<u32>) {
+    pub async fn make_node_alive_not_serving(&self, hostname: &String, leader_partitions: &Vec<u32>) {
         if self.proto_partition_client.is_some() {
             println!("Making node alive and not serving... {}", &hostname);
-            let request = tonic::Request::new(AnnounceAliveRequest {
+            let request = tonic::Request::new(AnnounceAliveNotServingRequest {
                 host_name: hostname.clone(),
-                partitions,
+                leader_partitions: leader_partitions.clone()
             });
             let response = self.proto_partition_client.clone().unwrap().make_node_alive_not_serving(request).await;
             match response {
@@ -98,12 +98,14 @@ impl Node {
             }
         }
     }
-    pub async fn make_node_alive_and_serving(&self, hostname: &String, partitions: Vec<u32>) {
+
+    pub async fn make_node_alive_and_serving(&self, hostname: &String, leader_partitions: Vec<u32>, follower_partitions: Vec<u32>) {
         if self.proto_partition_client.is_some() {
             println!("Making node alive and serving... {}", &hostname);
-            let request = tonic::Request::new(AnnounceAliveRequest {
+            let request = tonic::Request::new(AnnounceAliveServingRequest {
                 host_name: hostname.clone(),
-                partitions,
+                leader_partitions,
+                follower_partitions
             });
             let response = self.proto_partition_client.clone().unwrap().make_node_alive_serving(request).await;
             match response {
