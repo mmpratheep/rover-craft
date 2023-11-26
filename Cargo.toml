@@ -22,3 +22,10 @@ tonic-build = "0.10.2"
 
 [dev-dependencies]
 tokio = { version = "1.33.0", features = ["full"] }
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+#rustflags = ["-C", "target-cpu=native"]
+opt-level = "z"
+strip = "debuginfo"
