@@ -1,15 +1,13 @@
-use std::fs::read;
 use std::sync::{Arc};
 use tokio::sync::RwLock;
 use std::time::Duration;
 
-use log::{debug, info};
+use log::{debug};
 use tokio::time::interval;
 use tonic::{Request, Response, Status};
 use crate::cluster::partition_service::PartitionService;
 
 use crate::grpc::node_status::NodeStatus::Dead;
-use crate::grpc::nodes::NodeManager;
 use crate::grpc::service::cluster::{HealthCheckRequest, HealthCheckResponse};
 use crate::grpc::service::cluster::health_check_server::HealthCheck;
 
@@ -32,6 +30,8 @@ impl HealthCheckService {
         loop {
             // Wait for the next tick
             interval.tick().await;
+            let mut handle_recovery = false;
+            let mut re_balance_partitions = false;
             println!("Starting health check ");
             for node in partition_service.read().await.nodes.get_peers() {
                 debug!("Making health check for {}", node.host_name);
@@ -40,28 +40,46 @@ impl HealthCheckService {
                     Ok(_) => {
                         debug!("Received response");
                         if node.node_status == Dead {
-                            let read_guard = partition_service.read()
+                            handle_recovery = true;
+                            let partition_service_read_guard = partition_service.read()
                                 .await;
-                            let alive_peer_node = read_guard.nodes.get_node(&node.host_name);
-                            read_guard.nodes.make_node_alive_and_serving(&node.host_name);
-                            let current_node = read_guard.nodes.get_current_node().unwrap();
-                            let current_node_leader_partitions = read_guard.get_leader_partitions(&current_node.host_name);
-                            //todo give current hostname
-                            alive_peer_node.unwrap().make_node_alive_not_serving(&current_node.host_name, current_node_leader_partitions).await;
-                            //todo catchup the remaining things
-                            //todo make alive and serving
+                            let alive_peer_node = partition_service_read_guard.nodes.get_node(&node.host_name);
+                            partition_service_read_guard.nodes.make_node_alive_and_serving(&node.host_name);
+                            let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
+                            let current_node_leader_partitions = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
+                            alive_peer_node.unwrap().make_node_alive_not_serving(&current_node.host_name, &current_node_leader_partitions).await;
                         }
                     }
                     Err(err) => {
+                        re_balance_partitions = true;
                         debug!("Error occurred while doing healthcheck: {}", err);
                         partition_service.read().await.nodes.make_node_dead(&node.host_name);
                     }
                 }
             }
-            if partition_service.read().await.nodes.is_current_node_down() {
-                interval = tokio::time::interval(Duration::from_millis(100));
-            } else {
-                partition_service.write().await.balance_partitions_and_write_delta_data().await;
+            if re_balance_partitions{
+                if partition_service.read().await.nodes.is_current_node_down() {
+                    interval = tokio::time::interval(Duration::from_millis(100));
+                } else {
+                    partition_service.write().await.balance_partitions_and_write_delta_data().await;
+                }
+            }
+
+            if handle_recovery{
+                let partition_service_read_guard = partition_service.read()
+                    .await;
+                let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
+                let current_node_leader_partitions = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
+                let current_follower_partitions: Vec<_> = current_node_leader_partitions.into_iter()
+                    .map(| partition_id | {
+                        partition_service_read_guard.get_follower_node(partition_id.clone() as usize)
+                    })
+                    .collect();
+
+                //todo catchup the follower partitions
+                //todo catchup the leader partitions
+                //todo make alive and serving
+
             }
         }
     }
