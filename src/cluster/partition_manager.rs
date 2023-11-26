@@ -25,7 +25,7 @@ impl PartitionManager {
             .await.write_probe_to_store(partition_id, true, &probe).await.expect("internal probe write failed");
     }
     async fn get_partition(&self, partition_id: usize, is_leader: bool) -> Arc<Node> {
-        if is_leader { self.partition_service.read().await.get_leader_partition(partition_id).await } else { self.partition_service.read().await.get_follower_node(partition_id).await }
+        if is_leader { self.partition_service.read().await.get_leader_node(partition_id).await } else { self.partition_service.read().await.get_follower_node(partition_id).await }
     }
 
     pub async fn make_node_down(&self, node: Node) {

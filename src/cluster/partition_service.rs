@@ -34,7 +34,7 @@ impl PartitionService {
         }
     }
 
-    pub async fn get_leader_partition(&self, partition_id: usize) -> Arc<Node> {
+    pub async fn get_leader_node(&self, partition_id: usize) -> Arc<Node> {
         let leaders;
         {
             leaders = self.leader_nodes.read().unwrap();
@@ -53,6 +53,18 @@ impl PartitionService {
                 .map(|(index, _)| index as u32)
                 .collect();
             leader_partitions
+        }
+    }
+    pub fn get_follower_partition_ids(&self, hostname: &String) -> Vec<u32> {
+        let followers;
+        {
+            followers = self.follower_nodes.read().unwrap();
+            let follower_partitions = followers.iter()
+                .enumerate()
+                .filter(|(_,&ref follower_node)| *follower_node.host_name == *hostname)
+                .map(|(index, _)| index as u32)
+                .collect();
+            follower_partitions
         }
     }
 
