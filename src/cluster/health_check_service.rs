@@ -7,6 +7,7 @@ use log::{debug};
 use tokio::time::interval;
 use tonic::{Request, Response, Status};
 use crate::cluster::partition_service::PartitionService;
+use crate::grpc::node_status::NodeStatus;
 
 use crate::grpc::node_status::NodeStatus::Dead;
 use crate::grpc::service::cluster::{HealthCheckRequest, HealthCheckResponse};
@@ -53,11 +54,12 @@ impl HealthCheckService {
                         }
                     }
                     Err(err) => {
-                        re_balance_partitions = true;
-                        debug!("Health check error: {}",err);
-                        println!("Couldn't connect to node {}",node.host_name);
-                        partition_service.read().await.nodes.make_node_dead(&node.host_name);
-                        println!("After making node dead {:?}",partition_service.read().await.nodes)
+                        if *node.node_status.read().unwrap().deref() != Dead {
+                            re_balance_partitions = true;
+                            debug!("Health check error: {}",err);
+                            println!("Couldn't connect to node {}", node.host_name);
+                            partition_service.read().await.nodes.make_node_dead(&node.host_name);
+                        }
                     }
                 }
             }
