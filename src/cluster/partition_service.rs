@@ -49,7 +49,7 @@ impl PartitionService {
             leaders = self.leader_nodes.read().unwrap();
             let leader_partitions = leaders.iter()
                 .enumerate()
-                .filter(|(_,&ref leader_node)| *leader_node.node.host_name == *hostname)
+                .filter(|(_,&ref leader_node)| *leader_node.node.read().unwrap().host_name == *hostname)
                 .map(|(index, _)| index as u32)
                 .collect();
             leader_partitions
@@ -145,7 +145,7 @@ impl PartitionService {
                 if follower_node.is_current_node() {
                     match self.leader_nodes.write() {
                         Ok(mut nodes) => {
-                            nodes[i].delta_data = Some(Arc::new(MemoryStore::new()));
+                            nodes[i].delta_data = Some(MemoryStore::new());
                         }
                         Err(err) => {
                             error!("Failed to acquire write lock to create delta-data map {}",err);

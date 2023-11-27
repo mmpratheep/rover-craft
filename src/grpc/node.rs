@@ -1,15 +1,12 @@
 use std::ffi::OsString;
-use std::io::Chain;
 use std::time::Duration;
-use log::{debug, log};
+use log::{debug};
 use tonic::{Code, Response, Status};
-use tonic::codegen::tokio_stream::StreamExt;
-use tonic::transport::{Channel, Error};
-use warp::hyper::client::connect::Connect;
+use tonic::transport::{Channel};
 use crate::cluster::network_node::NetworkNode;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
-use crate::grpc::service::cluster::{AnnounceAliveServingRequest, AnnounceAliveNotServingRequest, HealthCheckRequest, HealthCheckResponse};
+use crate::grpc::service::cluster::{AnnounceAliveServingRequest, AnnounceAliveNotServingRequest, HealthCheckRequest};
 use crate::grpc::service::cluster::partition_proto_client::PartitionProtoClient;
 use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
 use crate::grpc::service::probe_sync::{PartitionRequest, ProbePartition, ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};

@@ -47,7 +47,8 @@ impl PartitionManager {
         println!("follower: {:?}", follower_node);
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing -> then read from that
         //todo else read from the follower partition
-        let result = leader_node.node.read_probe_from_store(partition_id, true, &probe_id).await;
+        let node_read_guard = leader_node.node.read().unwrap();
+        let result = node_read_guard.read_probe_from_store(partition_id, true, &probe_id).await;
         return match result {
             Ok(probe) => {
                 probe
@@ -56,7 +57,8 @@ impl PartitionManager {
                 error!("Exception {}",err);
 
                 //todo explicitly tell the follower node to rebalance the partition by sending the dead node ip, then make the request to the follower to get the probe from partition
-                let fallback_result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
+                let follower_node_read_guard = follower_node.read().unwrap();
+                let fallback_result = follower_node_read_guard.read_probe_from_store(partition_id, false, &probe_id).await;
                 match fallback_result {
                     Ok(fallback_probe) => {
                         return fallback_probe;
@@ -79,7 +81,8 @@ impl PartitionManager {
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
         println!("leader: {:?}", leader_node);
         println!("follower: {:?}", follower_node);
-        return if follower_node.node_status == NodeStatus::Dead {
+        let follower_read_guard = follower_node.read().unwrap();
+        return if follower_read_guard.node_status == NodeStatus::Dead {
             let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
             match result {
                 Ok(_probe_response) => {
@@ -90,8 +93,9 @@ impl PartitionManager {
                 }
             }
         } else {
-            let result = leader_node.node.write_probe_to_store(partition_id, true, &probe).await;
-            let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
+            let leader_read_guard = leader_node.node.read().unwrap();
+            let result = leader_read_guard.write_probe_to_store(partition_id, true, &probe).await;
+            let res = follower_read_guard.write_probe_to_store(partition_id, false, &probe).await;
             //todo handle this res
             match result {
                 Ok(_probe_response) => {
@@ -104,7 +108,7 @@ impl PartitionManager {
         }
     }
 
-    pub async fn get_delta_data(&self, partition_id: usize) -> Option<Arc<MemoryStore>> {
+    pub async fn get_delta_data(&self, partition_id: usize) -> Option<MemoryStore> {
         self.partition_service.read().await.get_leader_delta_data(partition_id).await
     }
 }

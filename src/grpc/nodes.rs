@@ -1,5 +1,4 @@
-use std::slice::Iter;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use log::error;
 use crate::grpc::node::Node;
 use crate::grpc::node_status::NodeStatus;
@@ -47,15 +46,11 @@ impl NodeManager {
     }
 
     fn change_node_state(&self, node_host: &String, status: NodeStatus) {
-        self.get_single_node(node_host)
-            .map(|it| {
-                let mut node = it.clone();
-                Arc::make_mut(&mut node).node_status = status;
-            }
-            );
+        let node = self.get_single_node(node_host);
+        node.write().unwrap().node_status = status;
     }
 
-    pub fn get_node(&self, node_host: &String) -> Option<Arc<Node>> {
+    pub fn get_node(&self, node_host: &String) -> Option<Arc<RwLock<Node>>> {
         return match self.get_single_node(node_host) {
             Some(node) => {
                 Some(Arc::clone(node))

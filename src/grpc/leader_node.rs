@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tonic::Status;
 use crate::grpc::node::Node;
 use crate::probe::probe::Probe;
@@ -10,7 +10,7 @@ pub struct LeaderNode {
     //todo arc
     pub(crate) node: Arc<Node>,
     //todo handle delta data removal
-    pub(crate) delta_data: Option<Arc<MemoryStore>>,
+    pub(crate) delta_data: Option<MemoryStore>,
 }
 
 impl LeaderNode {
