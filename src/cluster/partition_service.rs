@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::sync::{Arc};
 use std::sync::RwLock;
 use log::{error};
@@ -49,7 +50,7 @@ impl PartitionService {
             leaders = self.leader_nodes.read().unwrap();
             let leader_partitions = leaders.iter()
                 .enumerate()
-                .filter(|(_,&ref leader_node)| *leader_node.node.read().unwrap().host_name == *hostname)
+                .filter(|(_,&ref leader_node)| *leader_node.node.host_name == *hostname)
                 .map(|(index, _)| index as u32)
                 .collect();
             leader_partitions
@@ -87,7 +88,7 @@ impl PartitionService {
         if replica < nodes.len() {
             let mut index: usize = 0;
             for node in &nodes {
-                assign_values_for_leader(replica, &mut leader_nodes, node, index);
+                assign_values_for_leader(replica, &mut leader_nodes, node.clone(), index);
                 let mut temp_nodes = clone_except_given_value(&nodes, &node);
                 assign_values_for_replica(replica, &mut follower_nodes, &mut temp_nodes, index);
                 index += replica;
@@ -96,7 +97,7 @@ impl PartitionService {
         return (leader_nodes, follower_nodes, partition_size);
     }
 
-    pub async fn get_leader_delta_data(&self, partition_id: usize) -> Option<Arc<MemoryStore>> {
+    pub async fn get_leader_delta_data(&self, partition_id: usize) -> Option<MemoryStore> {
         let leaders = self.leader_nodes.read().unwrap();
         {
             let leader_ref = leaders.get(partition_id)
@@ -133,7 +134,7 @@ impl PartitionService {
             let leader_node = leader_nodes.get(i).unwrap();
             let follower_node = follower_nodes.get(i).unwrap();
 
-            if leader_node.node.node_status == NodeStatus::Dead {
+            if *leader_node.node.node_status.read().unwrap().deref() == NodeStatus::Dead {
                 let mut delta_data: Option<MemoryStore> = None;
                 if follower_node.is_current_node() {
                     delta_data = Some(MemoryStore::new());
@@ -141,7 +142,7 @@ impl PartitionService {
                 self.leader_nodes.write().unwrap()[i] = LeaderNode { node: follower_node.clone(), delta_data: None };
             }
 
-            if follower_node.node_status == NodeStatus::Dead {
+            if *follower_node.node_status.read().unwrap().deref() == NodeStatus::Dead {
                 if follower_node.is_current_node() {
                     match self.leader_nodes.write() {
                         Ok(mut nodes) => {
@@ -174,10 +175,10 @@ fn assign_values_for_replica(replica: usize, follower_nodes: &mut Vec<Arc<Node>>
     }
 }
 
-fn assign_values_for_leader(replica: usize, leader_nodes: &mut Vec<LeaderNode>, node: &Node, mut current_index: usize) {
+fn assign_values_for_leader(replica: usize, leader_nodes: &mut Vec<LeaderNode>, node: Arc<Node>, mut current_index: usize) {
     for _ in 0..replica {
         leader_nodes.insert(current_index, LeaderNode {
-            node: Arc::from(node.clone()),
+            node: node.clone(),
             delta_data: None,
         });
         current_index += 1;

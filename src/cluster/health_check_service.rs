@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::sync::{Arc};
 use tokio::sync::RwLock;
 use std::time::Duration;
@@ -39,16 +40,16 @@ impl HealthCheckService {
                 match result {
                     Ok(_) => {
                         debug!("Received response");
-                        if node.node_status == Dead {
+                        if *node.node_status.read().unwrap().deref() == Dead {
                             handle_recovery = true;
                             let partition_service_read_guard = partition_service.read()
                                 .await;
-                            let alive_peer_node = partition_service_read_guard.nodes.get_node(&node.host_name);
+                            let alive_peer_node = partition_service_read_guard.nodes.get_node(&node.host_name).unwrap().clone();
                             partition_service_read_guard.nodes.make_node_alive_and_serving(&node.host_name);
                             let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
                             let current_node_leader_partitions = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
                             println!("Announce alive and not serving");
-                            alive_peer_node.unwrap().announce_me_alive_not_serving(&current_node.host_name, &current_node_leader_partitions).await;
+                            alive_peer_node.announce_me_alive_not_serving(&current_node.host_name, &current_node_leader_partitions).await;
                         }
                     }
                     Err(err) => {

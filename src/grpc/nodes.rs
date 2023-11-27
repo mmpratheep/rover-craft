@@ -1,3 +1,5 @@
+use std::ops::Deref;
+use std::os::macos::raw::stat;
 use std::sync::{Arc, RwLock};
 use log::error;
 use crate::grpc::node::Node;
@@ -34,7 +36,7 @@ impl NodeManager {
 
     pub fn is_current_node_down(&self) -> bool {
         self.get_peers().iter()
-            .all(|node| node.node_status == NodeStatus::Dead)
+            .all(|node| *node.node_status.read().unwrap().deref() == NodeStatus::Dead)
     }
 
     pub fn make_node_dead(&self, node_host: &String) {
@@ -47,10 +49,11 @@ impl NodeManager {
 
     fn change_node_state(&self, node_host: &String, status: NodeStatus) {
         let node = self.get_single_node(node_host);
-        node.write().unwrap().node_status = status;
+        let mut guard = node.unwrap().node_status.write().unwrap();
+        *guard =  status;
     }
 
-    pub fn get_node(&self, node_host: &String) -> Option<Arc<RwLock<Node>>> {
+    pub fn get_node(&self, node_host: &String) -> Option<Arc<Node>> {
         return match self.get_single_node(node_host) {
             Some(node) => {
                 Some(Arc::clone(node))

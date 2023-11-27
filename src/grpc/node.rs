@@ -1,4 +1,6 @@
 use std::ffi::OsString;
+use std::ops::Deref;
+use std::sync::RwLock;
 use std::time::Duration;
 use log::{debug};
 use tonic::{Code, Response, Status};
@@ -13,23 +15,24 @@ use crate::grpc::service::probe_sync::{PartitionRequest, ProbePartition, ProbePr
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 //todo remove this clone
 pub struct Node {
     pub host_name: String,
     probe_store: NetworkNode,
     health_check_client: HealthCheckClient<Channel>,
     proto_partition_client: Option<PartitionProtoClient<Channel>>,
-    pub node_status: NodeStatus,
+    pub node_status: RwLock<NodeStatus>,
 }
 
 impl Node {
     pub fn make_node_down(mut self) {
-        self.node_status = NodeStatus::Dead
+        let mut guard = self.node_status.write().unwrap();
+        *guard =  NodeStatus::Dead;
     }
 
     pub fn is_node_not_down(&self) -> bool {
-        self.node_status != NodeStatus::Dead
+        *self.node_status.read().unwrap().deref() != NodeStatus::Dead
     }
 
     pub fn is_current_node(&self) -> bool {
@@ -66,7 +69,7 @@ impl Node {
                     probe_store: NetworkNode::LocalStore(MemoryStore::new()),
                     health_check_client: HealthCheckClient::new(Self::get_channel(&node_host_name).await),
                     proto_partition_client: None,
-                    node_status: NodeStatus::AliveServing,
+                    node_status: RwLock::new(NodeStatus::AliveServing),
                 };
         }
         Self {
@@ -74,7 +77,7 @@ impl Node {
             probe_store: NetworkNode::RemoteStore(ProbeSyncClient::new(Self::get_channel(&node_host_name).await)),
             health_check_client: HealthCheckClient::new(Self::get_channel(&node_host_name).await),
             proto_partition_client: Some(PartitionProtoClient::new(Self::get_channel(&node_host_name).await)),
-            node_status: NodeStatus::AliveServing,
+            node_status: RwLock::new(NodeStatus::AliveServing),
         }
     }
 
