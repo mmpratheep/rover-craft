@@ -125,9 +125,9 @@ impl PartitionService {
     }
 
     pub(crate) async fn balance_partitions_and_write_delta_data(&mut self) {
-        let leader_nodes = self.leader_nodes.read().unwrap();
+        let leader_nodes = self.leader_nodes.read().unwrap().clone();
 
-        let follower_nodes = self.follower_nodes.read().unwrap();
+        let follower_nodes = self.follower_nodes.read().unwrap().clone();
 
         //todo make sure it's happening only once
         for i in 0..leader_nodes.len() {
@@ -139,7 +139,8 @@ impl PartitionService {
                 if follower_node.is_current_node() {
                     delta_data = Some(MemoryStore::new());
                 }
-                self.leader_nodes.write().unwrap()[i] = LeaderNode { node: follower_node.clone(), delta_data: None };
+                let mut guard = self.leader_nodes.write().unwrap();
+                guard[i] = LeaderNode { node: follower_node.clone(), delta_data: None };
             }
 
             if *follower_node.node_status.read().unwrap().deref() == NodeStatus::Dead {
@@ -155,8 +156,8 @@ impl PartitionService {
                 }
             }
         }
-        println!("After rebalance: leaders: {:?}",leader_nodes);
-        println!("After rebalance: followers: {:?}",follower_nodes);
+        println!("After rebalance: leaders: {:?}",self.leader_nodes);
+        println!("After rebalance: followers: {:?}",self.follower_nodes);
     }
 }
 

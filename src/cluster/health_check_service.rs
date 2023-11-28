@@ -1,13 +1,12 @@
 use std::ops::Deref;
 use std::sync::{Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use std::time::Duration;
 
 use log::{debug};
-use tokio::time::interval;
+use tokio::time::{interval, sleep};
 use tonic::{Request, Response, Status};
 use crate::cluster::partition_service::PartitionService;
-use crate::grpc::node_status::NodeStatus;
 
 use crate::grpc::node_status::NodeStatus::Dead;
 use crate::grpc::service::cluster::{HealthCheckRequest, HealthCheckResponse};
@@ -27,6 +26,7 @@ impl HealthCheck for HealthCheckService {
 
 impl HealthCheckService {
     pub async fn start_health_check(partition_service: Arc<RwLock<PartitionService>>) {
+        sleep(Duration::from_secs(5)).await;
         let mut interval = interval(Duration::from_secs(1));
 
         loop {
@@ -41,7 +41,9 @@ impl HealthCheckService {
                 match result {
                     Ok(_) => {
                         debug!("Received response");
-                        if *node.node_status.read().unwrap().deref() == Dead {
+                        //todo change to current node status
+                        if Self::is_current_node_dead(&partition_service.read().await) {
+                            println!("Coming back alive");
                             handle_recovery = true;
                             let partition_service_read_guard = partition_service.read()
                                 .await;
@@ -54,10 +56,11 @@ impl HealthCheckService {
                         }
                     }
                     Err(err) => {
+                        println!("Couldn't connect to node {}", node.host_name);
                         if *node.node_status.read().unwrap().deref() != Dead {
                             re_balance_partitions = true;
                             debug!("Health check error: {}",err);
-                            println!("Couldn't connect to node {}", node.host_name);
+                            println!("Making node dead {}", node.host_name);
                             partition_service.read().await.nodes.make_node_dead(&node.host_name);
                         }
                     }
@@ -132,5 +135,9 @@ impl HealthCheckService {
                 }
             }
         }
+    }
+
+    fn is_current_node_dead(partition_service_read_guard: &RwLockReadGuard<PartitionService>) -> bool {
+        *partition_service_read_guard.nodes.get_current_node().unwrap().node_status.read().unwrap().deref() == Dead
     }
 }

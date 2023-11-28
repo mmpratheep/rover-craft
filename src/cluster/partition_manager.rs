@@ -29,15 +29,15 @@ impl PartitionManager {
         if is_leader { self.partition_service.read().await.get_leader_node(partition_id).await } else { self.partition_service.read().await.get_follower_node(partition_id).await }
     }
 
-    pub async fn make_node_down(&self, node: Node) {
-        if node.is_node_not_down() {
-            node.make_node_down();
-            //todo notice other nodes saying that one node is down, also make sure that the current node is not down
-            self.partition_service.write().await.balance_partitions_and_write_delta_data().await
-            //todo once the node is back, need to publish a message to other nodes saying that the node will be the leader for the existing leader partitions
-            //todo also move it's state to aliveAndServing and it can receive the writes for the partition, post the catchup it will send another request saying moved back to aliveAndServing
-        }
-    }
+    // pub async fn make_node_down(&self, node: Node) {
+    //     if node.is_node_not_down() {
+    //         node.make_node_down();
+    //         //todo notice other nodes saying that one node is down, also make sure that the current node is not down
+    //         self.partition_service.write().await.balance_partitions_and_write_delta_data().await
+    //         //todo once the node is back, need to publish a message to other nodes saying that the node will be the leader for the existing leader partitions
+    //         //todo also move it's state to aliveAndServing and it can receive the writes for the partition, post the catchup it will send another request saying moved back to aliveAndServing
+    //     }
+    // }
 
 
     pub async fn read_probe(&self, probe_id: String) -> Option<Probe> {
