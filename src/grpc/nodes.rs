@@ -1,5 +1,6 @@
-use std::slice::Iter;
-use std::sync::Arc;
+use std::ops::Deref;
+use std::os::macos::raw::stat;
+use std::sync::{Arc, RwLock};
 use log::error;
 use crate::grpc::node::Node;
 use crate::grpc::node_status::NodeStatus;
@@ -35,7 +36,7 @@ impl NodeManager {
 
     pub fn is_current_node_down(&self) -> bool {
         self.get_peers().iter()
-            .all(|node| node.node_status == NodeStatus::Dead)
+            .all(|node| *node.node_status.read().unwrap().deref() == NodeStatus::Dead)
     }
 
     pub fn make_node_dead(&self, node_host: &String) {
@@ -47,16 +48,13 @@ impl NodeManager {
     }
 
     fn change_node_state(&self, node_host: &String, status: NodeStatus) {
-        self.get_single_node(node_host)
-            .map(|it| {
-                let mut node = it.clone();
-                Arc::make_mut(&mut node).node_status = status;
-            }
-            );
+        let node = self.get_single_node(node_host);
+        let mut guard = node.unwrap().node_status.write().unwrap();
+        *guard =  status;
     }
 
-    pub fn get_node(&self, node_host: String) -> Option<Arc<Node>> {
-        return match self.get_single_node(&node_host) {
+    pub fn get_node(&self, node_host: &String) -> Option<Arc<Node>> {
+        return match self.get_single_node(node_host) {
             Some(node) => {
                 Some(Arc::clone(node))
             }
@@ -67,11 +65,14 @@ impl NodeManager {
         };
     }
 
+    pub fn get_current_node(&self) -> Option<&Arc<Node>> {
+        self.nodes.iter().find(|&node| node.is_current_node())
+    }
+
     pub fn get_peers(&self) -> Vec<&Arc<Node>> {
         self.nodes.iter()
-          .filter(|node| !node.is_current_node())
+            .filter(|node| !node.is_current_node())
             .collect()
-
     }
 
     fn get_single_node(&self, node_host: &String) -> Option<&Arc<Node>> {
@@ -80,6 +81,4 @@ impl NodeManager {
                 node.host_name == *node_host
             )
     }
-
-
 }

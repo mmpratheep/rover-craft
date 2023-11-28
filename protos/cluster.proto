@@ -7,8 +7,8 @@ service HealthCheck {
 }
 
 service PartitionProto{
-  rpc MakeNodeAliveNotServing (AnnounceAliveRequest) returns (Empty);
-  rpc MakeNodeAliveServing (AnnounceAliveRequest) returns (Empty);
+  rpc MakeNodeAliveNotServing (AnnounceAliveNotServingRequest) returns (Empty);
+  rpc MakeNodeAliveServing (AnnounceAliveServingRequest) returns (Empty);
 }
 
 message HealthCheckRequest {
@@ -19,9 +19,15 @@ message HealthCheckResponse {
   bool pong = 1;
 }
 
-message AnnounceAliveRequest{
+message AnnounceAliveServingRequest{
   string host_name = 1;
-  repeated uint32 partitions = 2;
+  repeated uint32 leader_partitions = 2;
+  repeated uint32 follower_partitions = 3;
+}
+
+message AnnounceAliveNotServingRequest{
+  string host_name = 1;
+  repeated uint32 leader_partitions = 2;
 }
 
 message Empty{}
