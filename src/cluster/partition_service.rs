@@ -1,11 +1,10 @@
-use std::ops::Deref;
 use std::sync::{Arc};
 use std::sync::RwLock;
 use log::{error};
 use crate::cluster::hash::hash;
 use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
-use crate::grpc::node_status::NodeStatus;
+use crate::grpc::node_ref::NodeRef;
 use crate::grpc::nodes::NodeManager;
 use crate::store::memory_store::MemoryStore;
 
@@ -50,7 +49,7 @@ impl PartitionService {
             leaders = self.leader_nodes.read().unwrap();
             let leader_partitions = leaders.iter()
                 .enumerate()
-                .filter(|(_,&ref leader_node)| *leader_node.node.host_name == *hostname)
+                .filter(|(_, &ref leader_node)| *leader_node.node.node_ref.host_name == *hostname)
                 .map(|(index, _)| index as u32)
                 .collect();
             leader_partitions
@@ -62,7 +61,7 @@ impl PartitionService {
             followers = self.follower_nodes.read().unwrap();
             let follower_partitions = followers.iter()
                 .enumerate()
-                .filter(|(_,&ref follower_node)| *follower_node.host_name == *hostname)
+                .filter(|(_, &ref follower_node)| *follower_node.node_ref.host_name == *hostname)
                 .map(|(index, _)| index as u32)
                 .collect();
             follower_partitions
@@ -79,7 +78,7 @@ impl PartitionService {
         }
     }
 
-    pub fn initialise_partitions(mut nodes: Vec<Arc<Node>>) -> (Vec<LeaderNode>, Vec<Arc<Node>>, usize) {
+    pub fn initialise_partitions(mut nodes: Vec<Arc<NodeRef>>) -> (Vec<LeaderNode>, Vec<Arc<Node>>, usize) {
         //distributes partition evenly across nodes with replication factor n-1
         let replica = nodes.len() - 1;
         let partition_size = nodes.len() * replica;
@@ -134,7 +133,7 @@ impl PartitionService {
             let leader_node = leader_nodes.get(i).unwrap();
             let follower_node = follower_nodes.get(i).unwrap();
 
-            if *leader_node.node.node_status.read().unwrap().deref() == NodeStatus::Dead {
+            if leader_node.node.is_node_down() {
                 let mut delta_data: Option<MemoryStore> = None;
                 if follower_node.is_current_node() {
                     delta_data = Some(MemoryStore::new());
@@ -143,7 +142,7 @@ impl PartitionService {
                 guard[i] = LeaderNode { node: follower_node.clone(), delta_data: None };
             }
 
-            if *follower_node.node_status.read().unwrap().deref() == NodeStatus::Dead {
+            if follower_node.is_node_down() {
                 if follower_node.is_current_node() {
                     match self.leader_nodes.write() {
                         Ok(mut nodes) => {
@@ -156,30 +155,30 @@ impl PartitionService {
                 }
             }
         }
-        println!("After rebalance: leaders: {:?}",self.leader_nodes);
-        println!("After rebalance: followers: {:?}",self.follower_nodes);
+        println!("After rebalance: leaders: {:?}", self.leader_nodes);
+        println!("After rebalance: followers: {:?}", self.follower_nodes);
     }
 }
 
-fn clone_except_given_value(nodes: &Vec<Arc<Node>>, node: &Node) -> Vec<Arc<Node>> {
+fn clone_except_given_value(nodes: &Vec<Arc<NodeRef>>, node: &NodeRef) -> Vec<Arc<NodeRef>> {
     let mut temp_nodes = nodes.clone();
     temp_nodes.retain(|n| n.host_name != node.host_name);
     return temp_nodes;
 }
 
-fn assign_values_for_replica(replica: usize, follower_nodes: &mut Vec<Arc<Node>>, temp_nodes: &mut Vec<Arc<Node>>, mut index: usize) {
+async fn assign_values_for_replica(replica: usize, follower_nodes: &mut Vec<Arc<Node>>, temp_nodes: &mut Vec<Arc<NodeRef>>, mut index: usize) {
     for _ in 0..replica {
         let remaining_node = temp_nodes.get(0).unwrap().clone();
-        follower_nodes.insert(index, remaining_node);
+        follower_nodes.insert(index, Arc::new(Node::new(remaining_node.clone())));
         temp_nodes.remove(0);
         index += 1;
     }
 }
 
-fn assign_values_for_leader(replica: usize, leader_nodes: &mut Vec<LeaderNode>, node: Arc<Node>, mut current_index: usize) {
+async fn assign_values_for_leader(replica: usize, leader_nodes: &mut Vec<LeaderNode>, node: Arc<NodeRef>, mut current_index: usize) {
     for _ in 0..replica {
         leader_nodes.insert(current_index, LeaderNode {
-            node: node.clone(),
+            node: Arc::new(Node::new(node.clone())),
             delta_data: None,
         });
         current_index += 1;

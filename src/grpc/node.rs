@@ -1,15 +1,13 @@
 use std::ffi::OsString;
 use std::ops::Deref;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use log::{debug};
 use tonic::{Code, Response, Status};
 use tonic::transport::{Channel};
 use crate::cluster::network_node::NetworkNode;
+use crate::grpc::node_ref::{get_current_node_hostname, NodeRef};
 use crate::grpc::node_status::NodeStatus;
-use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
-use crate::grpc::service::cluster::{AnnounceAliveServingRequest, AnnounceAliveNotServingRequest, HealthCheckRequest};
-use crate::grpc::service::cluster::partition_proto_client::PartitionProtoClient;
 use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
 use crate::grpc::service::probe_sync::{PartitionRequest, ProbePartition, ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};
 use crate::probe::probe::Probe;
@@ -18,35 +16,36 @@ use crate::store::memory_store::MemoryStore;
 #[derive(Debug)]
 //todo remove this clone
 pub struct Node {
-    pub host_name: String,
+    pub node_ref: Arc<NodeRef>,
     probe_store: NetworkNode,
-    health_check_client: HealthCheckClient<Channel>,
-    proto_partition_client: Option<PartitionProtoClient<Channel>>,
-    pub node_status: RwLock<NodeStatus>,
 }
 
 impl Node {
-    pub fn make_node_down(mut self) {
-        let mut guard = self.node_status.write().unwrap();
-        *guard =  NodeStatus::Dead;
+    pub fn node_status(&self) -> NodeStatus {
+        self.node_ref.node_status.read().unwrap().clone()
     }
+
+    // pub fn make_node_down(&mut self) {
+    //     let mut guard = self.node_status.write().unwrap();
+    //     *guard =  NodeStatus::Dead;
+    // }
 
     pub fn is_node_not_down(&self) -> bool {
-        *self.node_status.read().unwrap().deref() != NodeStatus::Dead
+        self.node_status() != NodeStatus::Dead
+    }
+    pub fn is_node_down(&self) -> bool {
+        self.node_status() == NodeStatus::Dead
     }
 
-    pub fn is_current_node(&self) -> bool {
-        Self::is_same_node(&self.host_name)
-    }
 
-    fn is_same_node(node_ip: &String) -> bool {
-        let current_node_host_name = Self::get_current_node_hostname().into_string().unwrap();
+    pub fn is_current_node_ip(node_ip: &String) -> bool {
+        let current_node_host_name = get_current_node_hostname().into_string().unwrap();
         debug!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
         node_ip.contains(&current_node_host_name)
     }
 
-    fn get_current_node_hostname() -> OsString {
-        hostname::get().unwrap().to_os_string()
+    pub fn is_current_node(&self) -> bool{
+        Self::is_current_node_ip(&self.node_ref.host_name)
     }
 
     pub fn update_with_delta_data(&self, partition : ProbePartition){
@@ -61,23 +60,17 @@ impl Node {
 
     }
 
-    pub(crate) async fn new(node_host_name: String) -> Self {
-        if Self::is_same_node(&node_host_name) {
+    pub(crate) fn new(node_ref: Arc<NodeRef>) -> Self {
+        if Self::is_current_node_ip(&node_ref.host_name) {
             return
                 Self {
-                    host_name: node_host_name.clone(),
+                    node_ref:node_ref.clone(),
                     probe_store: NetworkNode::LocalStore(MemoryStore::new()),
-                    health_check_client: HealthCheckClient::new(Self::get_channel(&node_host_name).await),
-                    proto_partition_client: None,
-                    node_status: RwLock::new(NodeStatus::AliveServing),
                 };
         }
         Self {
-            host_name: node_host_name.clone(),
-            probe_store: NetworkNode::RemoteStore(ProbeSyncClient::new(Self::get_channel(&node_host_name).await)),
-            health_check_client: HealthCheckClient::new(Self::get_channel(&node_host_name).await),
-            proto_partition_client: Some(PartitionProtoClient::new(Self::get_channel(&node_host_name).await)),
-            node_status: RwLock::new(NodeStatus::AliveServing),
+            node_ref:node_ref.clone(),
+            probe_store: NetworkNode::RemoteStore(ProbeSyncClient::new(get_channel(&node_ref.host_name))),
         }
     }
 
@@ -96,53 +89,6 @@ impl Node {
         }
     }
 
-    async fn get_channel(address: &String) -> Channel {
-        println!("Channel to connect: {}", address);
-        let time_out = 500;
-        match Channel::from_shared(address.clone()) {
-            Ok(endpoint) => endpoint,
-            Err(err) => {
-                panic!("Unable to parse URI {:?}", err)
-            }
-        }
-            .timeout(Duration::from_millis(time_out))
-            .connect_lazy()
-    }
-
-    pub async fn announce_me_alive_not_serving(&self, hostname: &String, leader_partitions: &Vec<u32>) {
-        if self.proto_partition_client.is_some() {
-            println!("Making node alive and not serving... {}", &hostname);
-            let request = tonic::Request::new(AnnounceAliveNotServingRequest {
-                host_name: hostname.clone(),
-                leader_partitions: leader_partitions.clone(),
-            });
-            let response = self.proto_partition_client.clone().unwrap().make_node_alive_not_serving(request).await;
-            match response {
-                Ok(_val) => {}
-                Err(err) => {
-                    print!("{}", err);
-                }
-            }
-        }
-    }
-
-    pub async fn announce_me_alive_and_serving(&self, hostname: &String, leader_partitions: Vec<u32>, follower_partitions: Vec<u32>) {
-        if self.proto_partition_client.is_some() {
-            println!("Making node alive and serving... {}", &hostname);
-            let request = tonic::Request::new(AnnounceAliveServingRequest {
-                host_name: hostname.clone(),
-                leader_partitions,
-                follower_partitions,
-            });
-            let response = self.proto_partition_client.clone().unwrap().make_node_alive_serving(request).await;
-            match response {
-                Ok(_val) => {}
-                Err(err) => {
-                    print!("{}", err);
-                }
-            }
-        }
-    }
 
     pub async fn read_probe_from_store(&self, partition_id: usize, is_leader: bool, probe_id: &String) -> Result<Option<Probe>, Status> {
         return match &self.probe_store {
@@ -175,20 +121,6 @@ impl Node {
                         Err(err)
                     }
                 }
-            }
-        };
-    }
-
-    pub async fn do_health_check(&self) -> Result<(), Status> {
-        let response = self.health_check_client.clone()
-            .health_check(HealthCheckRequest { ping: true }).await;
-
-        return match response {
-            Ok(_val) => {
-                Ok(())
-            }
-            Err(err) => {
-                Err(err)
             }
         };
     }
@@ -236,4 +168,17 @@ impl Node {
         channel.write_probe(request).await
         //todo handle retry logic
     }
+}
+
+pub  fn get_channel(address: &String) -> Channel {
+    println!("Channel to connect: {}", address);
+    let time_out = 500;
+    match Channel::from_shared(address.clone()) {
+        Ok(endpoint) => endpoint,
+        Err(err) => {
+            panic!("Unable to parse URI {:?}", err)
+        }
+    }
+        .timeout(Duration::from_millis(time_out))
+        .connect_lazy()
 }

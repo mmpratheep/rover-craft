@@ -90,7 +90,7 @@ impl HealthCheckService {
 
                 for partition_id in current_node_leader_partition_ids.clone().iter() {
                     let follower_partition = partition_service_read_guard.get_follower_node(partition_id.clone() as usize).await;
-                    println!("partition_id: {}, partition: {}", &partition_id, &follower_partition.host_name);
+                    println!("partition_id: {}, partition: {}", &partition_id, &follower_partition.node_ref.host_name);
                     let result = follower_partition
                         .get_delta_data_from_peer(partition_id.clone()).await;
 
@@ -110,7 +110,7 @@ impl HealthCheckService {
 
                 for partition_id in current_node_follower_partition_ids.clone().iter() {
                     let leader_partitions = partition_service_read_guard.get_leader_node(partition_id.clone() as usize).await;
-                    println!("partition_id: {}, partition: {}", &partition_id, &leader_partitions.host_name);
+                    println!("partition_id: {}, partition: {}", &partition_id, &leader_partitions.node_ref.host_name);
                     let result = leader_partitions
                         .get_delta_data_from_peer(partition_id.clone()).await;
 

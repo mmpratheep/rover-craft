@@ -3,6 +3,7 @@ use log::error;
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 use crate::cluster::partition_service::PartitionService;
+use crate::grpc::node::Node;
 use crate::grpc::service::cluster::{AnnounceAliveServingRequest, AnnounceAliveNotServingRequest, Empty};
 use crate::grpc::service::cluster::partition_proto_server::PartitionProto;
 
@@ -26,7 +27,9 @@ impl PartitionProto for ProtoPartitionService {
                         for i in req_data.leader_partitions {
                             let index = i as usize;
                             f_nodes[index] = l_nodes[index].node.clone();
-                            l_nodes[index].node = read_guard.nodes.get_node(&node_host_name).unwrap();
+                            //when node is back, we need to keep the delta data there in the leader, and move the data to the follower and create connection to from leader partition
+                            l_nodes[index].node = Arc::new(Node::new(
+                                read_guard.nodes.get_node(&node_host_name).unwrap()));
                             //todo check whether it handles properly for the second node assignment
                         }
                     }

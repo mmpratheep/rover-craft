@@ -1,21 +1,21 @@
 use std::ops::Deref;
 use std::sync::{Arc};
 use log::error;
-use crate::grpc::node::Node;
+use crate::grpc::node_ref::NodeRef;
 use crate::grpc::node_status::NodeStatus;
 
 #[derive(Debug, Default)]
 pub struct NodeManager {
-    pub nodes: Vec<Arc<Node>>,
+    pub nodes: Vec<Arc<NodeRef>>,
 }
 
 impl NodeManager {
     pub async fn initialise_nodes(node_hosts: Vec<String>) -> Self {
-        let mut nodes: Vec<Arc<Node>> = Vec::with_capacity(node_hosts.len());
+        let mut nodes: Vec<Arc<NodeRef>> = Vec::with_capacity(node_hosts.len());
         for node_host in node_hosts {
             nodes.push(
                 Arc::new(
-                    Node::new(node_host.clone()).await
+                    NodeRef::new(node_host.clone())
                 )
             );
         }
@@ -49,11 +49,11 @@ impl NodeManager {
     fn change_node_state(&self, node_host: &String, status: NodeStatus) {
         let node = self.get_single_node(node_host);
         let mut guard = node.unwrap().node_status.write().unwrap();
-        *guard =  status;
-        println!("After state change {:?}",node);
+        *guard = status;
+        println!("After state change {:?}", node);
     }
 
-    pub fn get_node(&self, node_host: &String) -> Option<Arc<Node>> {
+    pub fn get_node(&self, node_host: &String) -> Option<Arc<NodeRef>> {
         return match self.get_single_node(node_host) {
             Some(node) => {
                 Some(Arc::clone(node))
@@ -65,17 +65,17 @@ impl NodeManager {
         };
     }
 
-    pub fn get_current_node(&self) -> Option<&Arc<Node>> {
+    pub fn get_current_node(&self) -> Option<&Arc<NodeRef>> {
         self.nodes.iter().find(|&node| node.is_current_node())
     }
 
-    pub fn get_peers(&self) -> Vec<&Arc<Node>> {
+    pub fn get_peers(&self) -> Vec<&Arc<NodeRef>> {
         self.nodes.iter()
-            .filter(|node| !node.is_current_node())
+            .filter(|node_ref| !node_ref.is_current_node())
             .collect()
     }
 
-    fn get_single_node(&self, node_host: &String) -> Option<&Arc<Node>> {
+    fn get_single_node(&self, node_host: &String) -> Option<&Arc<NodeRef>> {
         self.nodes.iter()
             .find(|&node|
                 node.host_name == *node_host
