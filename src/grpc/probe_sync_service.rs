@@ -45,6 +45,6 @@ impl ProbeSync for ProbeSyncService {
         let partition_id = request.into_inner().partition_id;
         let delta_partition = self.partition_manager
             .get_delta_data(partition_id as usize).await;
-        Ok(Response::new(ProbePartition { probe_array: delta_partition.expect("unable to get delta partition").serialise() }))
+        Ok(Response::new(ProbePartition { probe_array: delta_partition.expect("no delta partition available").serialise() }))
     }
 }

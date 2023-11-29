@@ -17,6 +17,7 @@ impl PartitionProto for ProtoPartitionService {
     async fn make_node_alive_not_serving(&self, request: Request<AnnounceAliveNotServingRequest>) -> Result<Response<Empty>, Status> {
         //todo
         let req_data = request.into_inner();
+        println!("Make alive and serving host: {} : partitions {:?}", req_data.host_name, req_data.leader_partitions);
         let node_host_name = req_data.host_name;
         let read_guard = self.partition_service.read().await;
         read_guard.nodes.make_node_alive_and_not_serving(&node_host_name);
@@ -42,11 +43,16 @@ impl PartitionProto for ProtoPartitionService {
                 error!("Failed to get write lock for leaders {}",err)
             }
         };
+
+        println!("Post alive and serving, leaders {:?}",self.partition_service.read().await.leader_nodes);
+        println!("Post alive and serving, followers {:?}",self.partition_service.read().await.follower_nodes);
+
         Ok(Response::new(Empty {}))
     }
 
     async fn make_node_alive_serving(&self, request: Request<AnnounceAliveServingRequest>) -> Result<Response<Empty>, Status> {
         let req_data = request.into_inner();
+        println!("Make alive and serving host: {} : leader {:?}, follower: {:?}", req_data.host_name, req_data.leader_partitions,req_data.follower_partitions);
         let node_host_name = req_data.host_name;
         let read_guard = self.partition_service.read().await;
         read_guard.nodes.make_node_alive_and_not_serving(&node_host_name);
@@ -63,6 +69,7 @@ impl PartitionProto for ProtoPartitionService {
                 error!("Failed to get write lock for leaders {}",err)
             }
         }
+        println!("Post alive and not serving, leaders {:?}",self.partition_service.read().await.leader_nodes);
         Ok(Response::new(Empty {}))
     }
 }

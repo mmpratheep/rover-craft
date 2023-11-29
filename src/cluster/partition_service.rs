@@ -93,12 +93,12 @@ impl PartitionService {
         return (leader_nodes, follower_nodes, partition_size);
     }
 
-    pub async fn get_leader_delta_data(&self, partition_id: usize) -> Option<MemoryStore> {
+    pub fn get_leader_delta_data(&self, partition_id: usize) -> Option<MemoryStore> {
+        println!("Came here...");
         let leaders = self.leader_nodes.read().unwrap();
         {
-            let leader_ref = leaders.get(partition_id)
-                .expect("No leader to get to copy delta data for partition");
-            return leader_ref.clone().delta_data;
+            println!("Also here...");
+            return leaders.get(partition_id).unwrap().delta_data.clone()
         }
     }
 
@@ -129,18 +129,20 @@ impl PartitionService {
         for i in 0..leader_nodes.len() {
             let leader_node = leader_nodes.get(i).unwrap();
             let follower_node = follower_nodes.get(i).unwrap();
+            println!("leader {}", leader_node.node.node_ref.host_name);
+            println!("follower {}", follower_node.node_ref.host_name);
 
             if leader_node.node.is_node_down() {
-                let mut delta_data: Option<MemoryStore> = None;
-                if follower_node.is_current_node() {
-                    delta_data = Some(MemoryStore::new());
-                }
+                println!("down leader {}", leader_node.node.node_ref.host_name);
+                let  delta_data: Option<MemoryStore> = if follower_node.is_current_node() {Some(MemoryStore::new())} else {None};
                 let mut guard = self.leader_nodes.write().unwrap();
-                guard[i] = LeaderNode { node: follower_node.clone(), delta_data: None };
+                guard[i] = LeaderNode { node: follower_node.clone(), delta_data };
             }
 
             if follower_node.is_node_down() {
-                if follower_node.is_current_node() {
+                println!("down follower {}", follower_node.node_ref.host_name);
+                println!("leader {}", leader_node.node.node_ref.host_name);
+                if leader_node.node.is_current_node() {
                     match self.leader_nodes.write() {
                         Ok(mut nodes) => {
                             nodes[i].delta_data = Some(MemoryStore::new());

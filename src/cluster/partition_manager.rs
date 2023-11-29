@@ -146,6 +146,6 @@ impl PartitionManager {
     }
 
     pub async fn get_delta_data(&self, partition_id: usize) -> Option<MemoryStore> {
-        self.partition_service.read().await.get_leader_delta_data(partition_id).await
+        self.partition_service.read().await.get_leader_delta_data(partition_id)
     }
 }
