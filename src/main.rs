@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::Write;
 use std::{env, process};
 use std::sync::{Arc, RwLock};
+use log::info;
 use tokio::sync::RwLock as TrwLock;
 
 use tonic::transport::Server as GrpcServer;
@@ -37,10 +38,10 @@ async fn main() {
     let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).or(Some(&"http://localhost:9000".to_string())).expect("Missing listen-client-urls"));
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).or(Some(&"http://localhost:9001".to_string())).expect("Missing listen-peer-urls"));
     let address = format!("0.0.0.0:{}", peer_port).parse().unwrap();
-    println!("gRPC local address: {}", address);
+    info!("gRPC local address: {}", address);
     let peer_host_names = get_peer_hostnames(parsed_argument, peer_port);
 
-    println!("{}", peer_host_names[0]);
+    info!("{}", peer_host_names[0]);
 
     let node_manager = Arc::new(NodeManager::initialise_nodes(peer_host_names).await);
     let partition_service = Arc::new(TrwLock::new(PartitionService::new(node_manager.clone())));
@@ -66,7 +67,7 @@ async fn main() {
 }
 
 fn print_info(listen_port: u16, peer_port: u16) {
-    println!(
+    info!(
         "
    / __ \\____ _   _____  ___________________ _/ __/ /_
   / /_/ / __ \\ | / / _ \\/ ___/ ___/ ___/ __ `/ /_/ __/
@@ -74,8 +75,8 @@ fn print_info(listen_port: u16, peer_port: u16) {
 /_/ |_|\\____/|___/\\___/_/   \\___/_/   \\__,_/_/  \\__/
 "
     );
-    println!("Started listener on {}", listen_port);
-    println!("Started peer listener on {}", peer_port);
+    info!("Started listener on {}", listen_port);
+    info!("Started peer listener on {}", peer_port);
 }
 
 fn get_peer_hostnames(parsed_argument: HashMap<String, String>, peer_port: u16) -> Vec<String> {
@@ -87,7 +88,7 @@ fn get_peer_hostnames(parsed_argument: HashMap<String, String>, peer_port: u16) 
 
 fn write_pid() {
     let process_id = format!("{}", process::id());
-    println!("Current process Id is {}", &process_id);
+    info!("Current process Id is {}", &process_id);
     let mut file = File::options().create(true).write(true).append(false).open("./rovercraft.pid").unwrap();
     file.write_all(&process_id.as_bytes())
         .unwrap();

@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use log::info;
 
 use probe::Probe;
 use crate::grpc::service::probe_sync::{ProbeProto};
@@ -34,7 +35,7 @@ impl MemoryStore {
     }
 
     pub fn de_serialise_and_update(&self, serialised_data: Vec<ProbeProto>) {
-        println!("de_serialising data");
+        info!("de_serialising data");
         for data in serialised_data {
             let probe = Probe::from_probe_proto(data);
             self.probes.entry(probe.probe_id.clone())

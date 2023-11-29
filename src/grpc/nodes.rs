@@ -1,6 +1,6 @@
 use std::ops::Deref;
 use std::sync::{Arc};
-use log::error;
+use log::{error, info};
 use crate::grpc::node_ref::NodeRef;
 use crate::grpc::node_status::NodeStatus;
 
@@ -50,7 +50,7 @@ impl NodeManager {
         let node = self.get_single_node(node_host);
         let mut guard = node.unwrap().node_status.write().unwrap();
         *guard = status;
-        println!("After state change {:?}", node);
+        info!("After state change {:?}", node);
     }
 
     pub fn get_node(&self, node_host: &String) -> Option<Arc<NodeRef>> {

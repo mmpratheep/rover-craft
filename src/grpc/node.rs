@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use log::{debug};
+use log::{debug, info};
 use tonic::{Code, Response, Status};
 use tonic::transport::{Channel};
 use crate::cluster::network_node::NetworkNode;
@@ -54,7 +54,7 @@ impl Node {
                 store.de_serialise_and_update(partition.probe_array);
             }
             NetworkNode::RemoteStore(_) => {
-                println!("The data is not present in the current node")
+                info!("The data is not present in the current node")
             }
         }
 
@@ -96,7 +96,7 @@ impl Node {
                 Ok(store.get_probe(&probe_id))
             }
             NetworkNode::RemoteStore(remote_store) => {
-                println!("Starting Remote read call: ");
+                info!("Starting Remote read call: ");
                 let response = Self::read_remote_store(remote_store.clone(), partition_id, is_leader, probe_id).await;
                 Self::get_probe_from_response(response)
             }
@@ -111,13 +111,13 @@ impl Node {
             }
             NetworkNode::RemoteStore(remote_store) => {
                 let response = Self::write_remote_store(remote_store.clone(), partition_id, is_leader, probe).await;
-                println!("Starting Remote write call");
+                info!("Starting Remote write call");
                 match response {
                     Ok(_val) => {
                         Ok(())
                     }
                     Err(err) => {
-                        print!("{}", err);
+                        info!("{}", err);
                         Err(err)
                     }
                 }
@@ -132,7 +132,7 @@ impl Node {
                 Ok(Some(Probe::from_probe_proto(val.into_inner())))
             }
             Err(err) => {
-                eprintln!("Err from remote read for: {}", err);
+                info!("Err from remote read for: {}", err);
                 return Self::parse_error(err);
             }
         };
@@ -171,7 +171,7 @@ impl Node {
 }
 
 pub  fn get_channel(address: &String) -> Channel {
-    println!("Channel to connect: {}", address);
+    info!("Channel to connect: {}", address);
     let time_out = 500;
     match Channel::from_shared(address.clone()) {
         Ok(endpoint) => endpoint,
