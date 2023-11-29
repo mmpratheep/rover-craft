@@ -23,9 +23,6 @@ impl PartitionService {
     pub fn new(nodes: Arc<NodeManager>) -> Self {
         let (leaders, followers, partition_size) =
             Self::initialise_partitions(nodes.nodes.clone());
-        println!("leaders: {:?}", leaders);
-        println!("followers: {:?}", followers);
-        println!("partition size: {:?}", partition_size);
         PartitionService {
             leader_nodes: RwLock::new(leaders),
             follower_nodes: RwLock::new(followers),
@@ -166,7 +163,7 @@ fn clone_except_given_value(nodes: &Vec<Arc<NodeRef>>, node: &NodeRef) -> Vec<Ar
     return temp_nodes;
 }
 
-async fn assign_values_for_replica(replica: usize, follower_nodes: &mut Vec<Arc<Node>>, temp_nodes: &mut Vec<Arc<NodeRef>>, mut index: usize) {
+fn assign_values_for_replica(replica: usize, follower_nodes: &mut Vec<Arc<Node>>, temp_nodes: &mut Vec<Arc<NodeRef>>, mut index: usize) {
     for _ in 0..replica {
         let remaining_node = temp_nodes.get(0).unwrap().clone();
         follower_nodes.insert(index, Arc::new(Node::new(remaining_node.clone())));
@@ -175,7 +172,7 @@ async fn assign_values_for_replica(replica: usize, follower_nodes: &mut Vec<Arc<
     }
 }
 
-async fn assign_values_for_leader(replica: usize, leader_nodes: &mut Vec<LeaderNode>, node: Arc<NodeRef>, mut current_index: usize) {
+fn assign_values_for_leader(replica: usize, leader_nodes: &mut Vec<LeaderNode>, node: Arc<NodeRef>, mut current_index: usize) {
     for _ in 0..replica {
         leader_nodes.insert(current_index, LeaderNode {
             node: Arc::new(Node::new(node.clone())),

@@ -110,6 +110,7 @@ impl PartitionManager {
         //todo what happens when leader is down
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing & AliveNotServing then write
         //todo else read from the follower partition
+        println!("partition-service: {:?}", self.partition_service);
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
         println!("leader: {:?}", leader_node);
         println!("follower: {:?}", follower_node);

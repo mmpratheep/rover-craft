@@ -45,8 +45,7 @@ impl HealthCheckService {
                         if Self::is_current_node_dead(&partition_service.read().await) {
                             println!("Coming back alive");
                             handle_recovery = true;
-                            let partition_service_read_guard = partition_service.read()
-                                .await;
+                            let partition_service_read_guard = partition_service.read().await;
                             let alive_peer_node = partition_service_read_guard.nodes.get_node(&node.host_name).unwrap().clone();
                             partition_service_read_guard.nodes.make_node_alive_and_serving(&node.host_name);
                             let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
