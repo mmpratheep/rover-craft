@@ -5,7 +5,7 @@ use crate::cluster::hash::hash;
 use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
 use crate::grpc::node_ref::NodeRef;
-use crate::grpc::nodes::NodeManager;
+use crate::grpc::node_manager::NodeManager;
 use crate::store::memory_store::MemoryStore;
 
 
@@ -110,8 +110,8 @@ impl PartitionService {
             let partition_id = hash % self.partition_size;
             leaders = self.leader_nodes.read().unwrap();
             followers = self.follower_nodes.read().unwrap();
-            info!("leader partition id: {}", partition_id);
-            info!("follower partition id: {}", partition_id);
+            println!("leader partition id: {}", partition_id);
+            println!("follower partition id: {}", partition_id);
             let leader_ref = leaders.get(partition_id).expect("No leader to get");
             let follower_ref = followers.get(partition_id).expect("No follower to get");
 
@@ -152,8 +152,8 @@ impl PartitionService {
                 }
             }
         }
-        info!("After rebalance: leaders: {:?}", self.leader_nodes);
-        info!("After rebalance: followers: {:?}", self.follower_nodes);
+        println!("After rebalance: leaders: {:?}", self.leader_nodes);
+        println!("After rebalance: followers: {:?}", self.follower_nodes);
     }
 }
 

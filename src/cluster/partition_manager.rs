@@ -43,8 +43,8 @@ impl PartitionManager {
         //todo clone
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await
             .get_partition_nodes(&probe_id).await;
-        info!("read request {:?}",probe_id);
-        info!("partition-id: {:?}", partition_id);
+        println!("read request {:?}",probe_id);
+        println!("partition-id: {:?}", partition_id);
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing -> then read from that
         //todo else read from the follower partition
         return match leader_node.node.node_status() {
@@ -55,11 +55,11 @@ impl PartitionManager {
                 let result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
                 return match result {
                     Ok(val) => {
-                        info!("Read from store, {:?}",val);
+                        println!("Read from store, {:?}",val);
                         val
                     }
                     Err(error) => {
-                        info!("Error while getting data from follower when leader is alive and not serving {}", error);
+                        println!("Error while getting data from follower when leader is alive and not serving {}", error);
                         None
                     }
                 }
@@ -71,7 +71,7 @@ impl PartitionManager {
                         val
                     }
                     Err(error) => {
-                        info!("Error while getting data from follower when leader is dead {}", error);
+                        println!("Error while getting data from follower when leader is dead {}", error);
                         None
                     }
                 }
@@ -84,7 +84,7 @@ impl PartitionManager {
 
         return match result {
             Ok(probe) => {
-                info!("Read data: {:?}",probe);
+                println!("Read data: {:?}",probe);
                 probe
             }
             Err(err) => {
@@ -112,20 +112,20 @@ impl PartitionManager {
         //todo what happens when leader is down
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing & AliveNotServing then write
         //todo else read from the follower partition
-        // info!("partition-service: {:?}", self.partition_service);
+        // println!("partition-service: {:?}", self.partition_service);
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
-        info!("write request {:?}",probe);
-        info!("partition-id: {:?}", partition_id);
+        println!("write request {:?}",probe);
+        println!("partition-id: {:?}", partition_id);
         let result = leader_node.node.write_probe_to_store(partition_id, true, &probe).await;
         let mut final_result = None;
         match result {
             Ok(_probe_response) => {
-                info!("successfully written to leader");
+                println!("successfully written to leader");
                 final_result = Some(probe.clone());
             }
             Err(_err) => {
                 //todo ideally it should not reach here
-                info!("Should not reach here")
+                println!("Should not reach here")
             }
         }
         if follower_node.is_node_not_down() {
@@ -134,11 +134,11 @@ impl PartitionManager {
             //todo handle this res
             match res {
                 Ok(_probe_response) => {
-                    info!("successfully written to follower");
+                    println!("successfully written to follower");
                     final_result = Some(probe);
                 }
                 Err(_err) => {
-                    info!("follower down while writing");
+                    println!("follower down while writing");
                 }
             }
         }

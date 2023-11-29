@@ -3,7 +3,7 @@ use crate::probe::probe::Probe;
 
 #[test]
 fn run() {
-    info!("from unit test")
+    println!("from unit test")
 }
 
 #[test]

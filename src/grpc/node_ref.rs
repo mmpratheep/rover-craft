@@ -35,7 +35,7 @@ impl NodeRef {
 
     fn is_same_node(node_ip: &String) -> bool {
         let current_node_host_name = get_current_node_hostname().into_string().unwrap();
-        info!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
+        println!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
         node_ip.contains(&current_node_host_name)
     }
 
@@ -56,7 +56,7 @@ impl NodeRef {
 
     pub async fn announce_me_alive_not_serving(&self, hostname: &String, leader_partitions: &Vec<u32>) {
         if self.proto_partition_client.is_some() {
-            info!("Making node alive and not serving... {}", &hostname);
+            println!("Making node alive and not serving... {}", &hostname);
             let request = tonic::Request::new(AnnounceAliveNotServingRequest {
                 host_name: hostname.clone(),
                 leader_partitions: leader_partitions.clone(),
@@ -65,7 +65,7 @@ impl NodeRef {
             match response {
                 Ok(_val) => {}
                 Err(err) => {
-                    info!("error while announcing alive and not serving: {}", err);
+                    println!("error while announcing alive and not serving: {}", err);
                 }
             }
         }
@@ -73,7 +73,7 @@ impl NodeRef {
 
     pub async fn announce_me_alive_and_serving(&self, hostname: &String, leader_partitions: Vec<u32>, follower_partitions: Vec<u32>) {
         if self.proto_partition_client.is_some() {
-            info!("Making node alive and serving... {}", &hostname);
+            println!("Making node alive and serving... {}", &hostname);
             let request = tonic::Request::new(AnnounceAliveServingRequest {
                 host_name: hostname.clone(),
                 leader_partitions,
@@ -83,7 +83,7 @@ impl NodeRef {
             match response {
                 Ok(_val) => {}
                 Err(err) => {
-                    info!("Error while announcing alive and serving: {}", err);
+                    println!("Error while announcing alive and serving: {}", err);
                 }
             }
         }

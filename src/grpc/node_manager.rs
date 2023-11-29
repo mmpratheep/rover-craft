@@ -50,7 +50,9 @@ impl NodeManager {
         let node = self.get_single_node(node_host);
         let mut guard = node.unwrap().node_status.write().unwrap();
         *guard = status;
-        info!("After state change {:?}", node);
+        //todo remove below while taking to prod
+        drop(guard);
+        println!("After state change host: {}, status: {:?}", node.unwrap().host_name, node.unwrap().node_status.read())
     }
 
     pub fn get_node(&self, node_host: &String) -> Option<Arc<NodeRef>> {
