@@ -1,6 +1,6 @@
 use std::ffi::OsString;
 use std::sync::{RwLock};
-use log::info;
+use log::{debug, error, info};
 use tonic::Status;
 use tonic::transport::Channel;
 use crate::grpc::node::{get_channel, Node};
@@ -35,7 +35,7 @@ impl NodeRef {
 
     fn is_same_node(node_ip: &String) -> bool {
         let current_node_host_name = get_current_node_hostname().into_string().unwrap();
-        println!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
+        debug!("current {} node {} result {}", current_node_host_name, node_ip, node_ip.contains(&current_node_host_name));
         node_ip.contains(&current_node_host_name)
     }
 
@@ -63,7 +63,9 @@ impl NodeRef {
             });
             let response = self.proto_partition_client.clone().unwrap().make_node_alive_not_serving(request).await;
             match response {
-                Ok(_val) => {}
+                Ok(_val) => {
+                    println!("Made node alive and not serving in: {}",hostname);
+                }
                 Err(err) => {
                     println!("error while announcing alive and not serving: {}", err);
                 }
@@ -81,7 +83,9 @@ impl NodeRef {
             });
             let response = self.proto_partition_client.clone().unwrap().make_node_alive_serving(request).await;
             match response {
-                Ok(_val) => {}
+                Ok(_val) => {
+                    println!("Made node alive and serving in: {}",hostname);
+                }
                 Err(err) => {
                     println!("Error while announcing alive and serving: {}", err);
                 }

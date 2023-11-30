@@ -3,7 +3,7 @@ use std::sync::{Arc};
 use tokio::sync::{RwLock, RwLockReadGuard};
 use std::time::Duration;
 
-use log::{debug, info};
+use log::{debug, error, info};
 use tokio::time::{interval, sleep};
 use tonic::{Request, Response, Status};
 use crate::cluster::partition_service::PartitionService;
@@ -27,7 +27,7 @@ impl HealthCheck for HealthCheckService {
 impl HealthCheckService {
     pub async fn start_health_check(partition_service: Arc<RwLock<PartitionService>>) {
         sleep(Duration::from_secs(5)).await;
-        let mut interval = interval(Duration::from_secs(1));
+        let mut interval = interval(Duration::from_millis(500));
 
         loop {
             // Wait for the next tick
@@ -45,16 +45,6 @@ impl HealthCheckService {
                         if Self::is_current_node_dead(&partition_service.read().await) {
                             println!("Coming back alive");
                             handle_recovery = true;
-                            let partition_service_read_guard = partition_service.read().await;
-                            let alive_peer_node = partition_service_read_guard.nodes.get_node(&peer_node.host_name).unwrap().clone();
-
-                            let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
-                            println!("making current node alive");
-                            partition_service_read_guard.nodes.make_node_alive_and_serving(&current_node.host_name);
-
-                            let current_node_leader_partitions = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
-                            println!("Announce alive and not serving, for partitions: {:?}",current_node_leader_partitions);
-                            alive_peer_node.announce_me_alive_not_serving(&current_node.host_name, &current_node_leader_partitions).await;
                         }
                     }
                     Err(err) => {
@@ -72,7 +62,7 @@ impl HealthCheckService {
                 println!("Seems like node is down");
                 if partition_service.read().await.nodes.is_current_node_down() {
                     println!("Marking current node down");
-                    interval = tokio::time::interval(Duration::from_millis(100));
+                    interval = tokio::time::interval(Duration::from_millis(500));
                     let partition_service_read_guard = partition_service.read().await;
                     partition_service_read_guard.nodes.make_node_dead(
                         &partition_service_read_guard.nodes.get_current_node().unwrap().host_name
@@ -84,6 +74,19 @@ impl HealthCheckService {
             }
 
             if handle_recovery {
+                for peer_node in partition_service.read().await.nodes.get_peers() {
+                    let partition_service_read_guard = partition_service.read().await;
+                    let alive_peer_node = partition_service_read_guard.nodes.get_node(&peer_node.host_name).unwrap().clone();
+
+                    let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();
+                    println!("making current node alive");
+                    partition_service_read_guard.nodes.make_node_alive_and_serving(&current_node.host_name);
+
+                    let current_node_leader_partitions = partition_service_read_guard.get_leader_partition_ids(&current_node.host_name);
+                    println!("Announce alive and not serving, for partitions: {:?}", current_node_leader_partitions);
+                    alive_peer_node.announce_me_alive_not_serving(&current_node.host_name, &current_node_leader_partitions).await;
+                }
+
                 println!("Handling recovery");
                 let partition_service_read_guard = partition_service.read().await;
                 let current_node = partition_service_read_guard.nodes.get_current_node().unwrap();

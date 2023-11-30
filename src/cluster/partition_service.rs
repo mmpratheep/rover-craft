@@ -121,6 +121,8 @@ impl PartitionService {
     }
 
     pub(crate) async fn balance_partitions_and_write_delta_data(&mut self) {
+        println!("Before rebalance: leaders: {:?}", self.leader_nodes);
+        println!("Before rebalance: followers: {:?}", self.follower_nodes);
         let leader_nodes = self.leader_nodes.read().unwrap().clone();
 
         let follower_nodes = self.follower_nodes.read().unwrap().clone();
@@ -148,7 +150,7 @@ impl PartitionService {
                             nodes[i].delta_data = Some(MemoryStore::new());
                         }
                         Err(err) => {
-                            error!("Failed to acquire write lock to create delta-data map {}",err);
+                            println!("Failed to acquire write lock to create delta-data map {}",err);
                         }
                     }
                 }

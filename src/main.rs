@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Write;
 use std::{env, process};
 use std::sync::{Arc, RwLock};
-use log::info;
+use log::{error, info};
 use tokio::sync::RwLock as TrwLock;
 
 use tonic::transport::Server as GrpcServer;

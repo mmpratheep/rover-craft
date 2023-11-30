@@ -1,5 +1,5 @@
 use dashmap::DashMap;
-use log::info;
+use log::{error, info};
 
 use probe::Probe;
 use crate::grpc::service::probe_sync::{ProbeProto};

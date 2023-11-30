@@ -88,7 +88,7 @@ impl PartitionManager {
                 probe
             }
             Err(err) => {
-                error!("Exception {}", err);
+                println!("Exception {}", err);
 
                 //todo explicitly tell the follower node to rebalance the partition by sending the dead node ip, then make the request to the follower to get the probe from partition
                 let fallback_result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
@@ -124,6 +124,7 @@ impl PartitionManager {
                 final_result = Some(probe.clone());
             }
             Err(_err) => {
+                self.partition_service.read().await.balance_partitions_and_write_delta_data();
                 //todo ideally it should not reach here
                 println!("Should not reach here")
             }

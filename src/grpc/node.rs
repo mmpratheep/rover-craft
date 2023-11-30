@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use log::{debug, info};
+use log::{debug, error, info};
 use tonic::{Code, Response, Status};
 use tonic::transport::{Channel};
 use crate::cluster::network_node::NetworkNode;

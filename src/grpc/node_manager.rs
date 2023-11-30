@@ -61,7 +61,7 @@ impl NodeManager {
                 Some(Arc::clone(node))
             }
             None => {
-                error!("Unable to get existing node, So creating new one");
+                println!("Unable to get existing node, So creating new one");
                 None
             }
         };
