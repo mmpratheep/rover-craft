@@ -43,6 +43,7 @@ impl HealthCheckService {
                         println!("Received response");
                         //todo change to current node status
                         if Self::is_current_node_dead(&partition_service.read().await) {
+                            interval = tokio::time::interval(Duration::from_millis(500));
                             println!("Coming back alive");
                             handle_recovery = true;
                         }
@@ -62,7 +63,7 @@ impl HealthCheckService {
                 println!("Seems like node is down");
                 if partition_service.read().await.nodes.is_current_node_down() {
                     println!("Marking current node down");
-                    interval = tokio::time::interval(Duration::from_millis(500));
+                    interval = tokio::time::interval(Duration::from_millis(50));
                     let partition_service_read_guard = partition_service.read().await;
                     partition_service_read_guard.nodes.make_node_dead(
                         &partition_service_read_guard.nodes.get_current_node().unwrap().host_name
