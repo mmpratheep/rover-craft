@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use tokio::sync::mpsc::Sender;
 use warp::{Filter, Rejection, Reply};
 use warp::http::StatusCode;
 use warp::reply::{json, with_status};
@@ -16,6 +17,7 @@ pub async fn update_probe(
     probe_id: String,
     probe_request: ProbeRequest,
     store: Arc<PartitionManager>,
+    tx: Sender<String>
 ) -> Result<impl Reply, Rejection> {
     let probe = Probe::create_probe(probe_id, probe_request);
     //todo remove await here
@@ -27,8 +29,9 @@ pub async fn update_probe(
 pub async fn get_probe(
     probe_id: String,
     store: Arc<PartitionManager>,
+    tx: Sender<String>
 ) -> Result<impl Reply, Rejection> {
-    let response = store.read_probe(probe_id).await;
+    let response = store.read_probe(probe_id, tx).await;
     match response {
         Some(value) => {
             Ok(with_status(json(&value), StatusCode::OK))

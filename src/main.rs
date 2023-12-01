@@ -5,7 +5,8 @@ use std::io::Write;
 use std::{env, process};
 use std::sync::{Arc, RwLock};
 use log::{error, info};
-use tokio::sync::RwLock as TrwLock;
+use std::string::String;
+use tokio::sync::{mpsc, RwLock as TrwLock};
 
 use tonic::transport::Server as GrpcServer;
 use crate::cluster::health_check_service::HealthCheckService;
@@ -43,16 +44,16 @@ async fn main() {
 
     println!("{}", peer_host_names[0]);
 
+    let (tx, mut rx) = mpsc::channel::<String>(1);
+
     let node_manager = Arc::new(NodeManager::initialise_nodes(peer_host_names).await);
     let partition_service = Arc::new(TrwLock::new(PartitionService::new(node_manager.clone())));
     let store = Arc::new(PartitionManager {
         partition_service: partition_service.clone()
     });
-    let http_server = tokio::spawn(setup_controller(listen_port, store.clone()));
+    let http_server = tokio::spawn(setup_controller(listen_port, store.clone(),tx));
 
-    let health_check_future = tokio::spawn(HealthCheckService::start_health_check(partition_service.clone()));
-
-
+    let health_check_future = tokio::spawn(HealthCheckService::start_health_check(partition_service.clone(), rx));
     let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder()

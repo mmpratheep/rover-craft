@@ -1,6 +1,7 @@
 use std::sync::{Arc};
 use tokio::sync::RwLock as TrwLock;
 use log::{error, info};
+use tokio::sync::mpsc::Sender;
 use crate::cluster::partition_service::PartitionService;
 use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
@@ -39,7 +40,7 @@ impl PartitionManager {
     // }
 
 
-    pub async fn read_probe(&self, probe_id: String) -> Option<Probe> {
+    pub async fn read_probe(&self, probe_id: String,tx: Sender<String>) -> Option<Probe> {
         //todo clone
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await
             .get_partition_nodes(&probe_id).await;
@@ -124,7 +125,7 @@ impl PartitionManager {
                 final_result = Some(probe.clone());
             }
             Err(_err) => {
-                self.partition_service.read().await.balance_partitions_and_write_delta_data();
+                // self.partition_service.read().await.balance_partitions_and_write_delta_data();
                 //todo ideally it should not reach here
                 println!("Should not reach here")
             }
