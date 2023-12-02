@@ -1,10 +1,12 @@
 use std::ffi::OsString;
+use std::ops::Deref;
 use std::sync::{RwLock};
 use log::{debug, error, info};
 use tonic::Status;
 use tonic::transport::Channel;
 use crate::grpc::node::{get_channel, Node};
 use crate::grpc::node_status::NodeStatus;
+use crate::grpc::node_status::NodeStatus::Dead;
 use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
 use crate::grpc::service::cluster::{AnnounceAliveNotServingRequest, AnnounceAliveServingRequest, HealthCheckRequest};
 use crate::grpc::service::cluster::partition_proto_client::PartitionProtoClient;
@@ -27,6 +29,10 @@ impl NodeRef {
             //todo handle creation of channel to current node
             proto_partition_client: Some(PartitionProtoClient::new(get_channel(&host_name))),
         }
+    }
+
+    pub fn is_dead(&self) -> bool {
+        *self.node_status.read().unwrap().deref() == Dead
     }
 
     pub fn is_current_node(&self) -> bool {
