@@ -82,7 +82,7 @@ impl HealthCheckService {
         }
         if re_balance_partitions {
             println!("Seems like node is down");
-            if partition_service.read().await.is_current_node_dead() {
+            if partition_service.read().await.is_current_node_down() {
                 println!("Marking current node down");
                 *interval = tokio::time::interval(Duration::from_millis(50));
                 let partition_service_read_guard = partition_service.read().await;

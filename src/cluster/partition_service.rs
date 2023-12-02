@@ -246,6 +246,10 @@ impl PartitionService {
         self.nodes.get_current_node().unwrap().is_dead()
     }
 
+    pub (crate) fn  is_current_node_down(&self) -> bool {
+        self.nodes.is_current_node_down()
+    }
+
     pub (crate) async fn announce_alive_and_serving(&self) {
         let current_node = self.nodes.get_current_node().unwrap();
         let current_node_leader_partition_ids = self.get_leader_partition_ids(&current_node.host_name);
