@@ -146,22 +146,22 @@ impl PartitionManager {
                 }
             }
         }
-        if follower_node.is_node_not_down() {
-            //you need to write to delta data in leader if the delta data is present, and the follower node will take care of handling original read and write
-            let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
-            //todo handle this res
-            match res {
-                Ok(_probe_response) => {
-                    log::info!("successfully written to follower");
-                    final_result = Some(probe);
-                }
-                Err(_err) => {
-                    log::warn!("Err: follower down while writing");
-                    tx.send(leader_node.node.node_ref.host_name.clone()).await.expect("Err couldn't send leader down message via channel to health check ");
-                    log::warn!("writing to delta in leader");
-                    leader_node.write_to_delta(&probe);
-                }
+
+        //you need to write to delta data in leader if the delta data is present, and the follower node will take care of handling original read and write
+        let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
+        //todo handle this res
+        match res {
+            Ok(_probe_response) => {
+                log::info!("successfully written to follower");
+                final_result = Some(probe);
             }
+            Err(_err) => {
+                log::warn!("Err: follower down while writing");
+                tx.send(leader_node.node.node_ref.host_name.clone()).await.expect("Err couldn't send leader down message via channel to health check ");
+                log::warn!("writing to delta in leader");
+                leader_node.write_to_delta(&probe);
+            }
+
         }
         return final_result;
     }
