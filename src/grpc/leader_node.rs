@@ -1,9 +1,11 @@
-use std::sync::{Arc, RwLock};
+use std::fmt;
+use std::sync::Arc;
+
 use tonic::Status;
+
 use crate::grpc::node::Node;
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
-
 
 #[derive(Clone, Debug)]
 pub struct LeaderNode {
@@ -11,6 +13,12 @@ pub struct LeaderNode {
     pub(crate) node: Arc<Node>,
     //todo handle delta data removal
     pub(crate) delta_data: Option<MemoryStore>,
+}
+
+impl fmt::Display for LeaderNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", &self.node)
+    }
 }
 
 impl LeaderNode {

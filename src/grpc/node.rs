@@ -1,15 +1,16 @@
-use std::ffi::OsString;
-use std::ops::Deref;
-use std::sync::{Arc, RwLock};
+use std::fmt;
+use std::sync::Arc;
 use std::time::Duration;
-use log::{debug, error, info};
+
+use log::debug;
 use tonic::{Code, Response, Status};
-use tonic::transport::{Channel};
+use tonic::transport::Channel;
+
 use crate::cluster::network_node::NetworkNode;
 use crate::grpc::node_ref::{get_current_node_hostname, NodeRef};
 use crate::grpc::node_status::NodeStatus;
-use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
 use crate::grpc::service::probe_sync::{PartitionRequest, ProbePartition, ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};
+use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
@@ -18,6 +19,12 @@ use crate::store::memory_store::MemoryStore;
 pub struct Node {
     pub node_ref: Arc<NodeRef>,
     probe_store: NetworkNode,
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", &self.node_ref)
+    }
 }
 
 impl Node {

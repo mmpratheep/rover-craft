@@ -89,8 +89,7 @@ impl HealthCheckService {
                 partition_service_read_guard.make_node_dead(&partition_service_read_guard.current_node().host_name);
             } else {
                 println!("Re-balancing partitions");
-                //Do we need write lock here?
-                partition_service.write().await.balance_partitions_and_write_delta_data().await;
+                partition_service.read().await.balance_partitions_and_write_delta_data().await;
             }
         }
 

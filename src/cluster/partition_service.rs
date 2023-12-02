@@ -121,9 +121,19 @@ impl PartitionService {
         }
     }
 
-    pub(crate) async fn balance_partitions_and_write_delta_data(&mut self) {
-        println!("Before rebalance: leaders: {:?}", self.leader_nodes);
-        println!("Before rebalance: followers: {:?}", self.follower_nodes);
+    fn print_leader(&self, log_text: &str) {
+        let leaders: Vec<String> = self.leader_nodes.read().unwrap().iter().map(|it| it.to_string()).collect();
+        println!("{} leaders: {:?}", log_text, leaders);
+    }
+
+    fn print_follower(&self, log_text: &str) {
+        let followers: Vec<String> = self.follower_nodes.read().unwrap().iter().map(|it| it.to_string()).collect();
+        println!("{} followers: {:?}", log_text, followers);
+    }
+
+    pub(crate) async fn balance_partitions_and_write_delta_data(&self) {
+        self.print_leader("Before rebalance:");
+        self.print_follower("Before rebalance:");
         let leader_nodes = self.leader_nodes.read().unwrap().clone();
 
         let follower_nodes = self.follower_nodes.read().unwrap().clone();
@@ -157,13 +167,13 @@ impl PartitionService {
                 }
             }
         }
-        println!("After rebalance: leaders: {:?}", self.leader_nodes);
-        println!("After rebalance: followers: {:?}", self.follower_nodes);
+        self.print_leader("After rebalance:");
+        self.print_follower("After rebalance:");
     }
 
     pub(crate) async fn make_node_alive_and_not_serving(&self, req_data: &AnnounceAliveNotServingRequest) {
-        println!("Before alive and not serving, leaders {:?}",self.leader_nodes);
-        println!("Before alive and not serving, followers {:?}",self.follower_nodes);
+        self.print_leader("Before alive and not serving,");
+        self.print_follower("Before alive and not serving,");
         let node_host_name = req_data.host_name.clone();
         self.nodes.make_node_alive_and_not_serving(&node_host_name);
         match self.leader_nodes.write() {
@@ -191,15 +201,15 @@ impl PartitionService {
             }
         };
 
-        println!("Post alive and not serving, leaders {:?}",self.leader_nodes);
-        println!("Post alive and not serving, followers {:?}",self.follower_nodes);
+        self.print_leader("After alive and not serving,");
+        self.print_follower("After alive and not serving,");
 
     }
 
 
     pub(crate) async fn make_node_alive_serving(&self, req_data: &AnnounceAliveServingRequest) {
-        println!("Make alive and serving host: {} : leader {:?}, follower: {:?}", req_data.host_name, req_data.leader_partitions,req_data.follower_partitions);
-        println!("Before alive and serving, leaders {:?}",self.leader_nodes);
+        self.print_leader("Before alive and serving,");
+        self.print_follower("Before alive and serving,");
         let node_host_name = req_data.host_name.clone();
         self.nodes.make_node_alive_and_not_serving(&node_host_name);
         match self.leader_nodes.write() {
@@ -215,7 +225,8 @@ impl PartitionService {
                 println!("Failed to get write lock for leaders {}",err)
             }
         }
-        println!("Post alive and serving, leaders {:?}",self.leader_nodes);
+        self.print_leader("After alive and serving,");
+        self.print_follower("After alive and serving,");
     }
 
     pub(crate) async fn get_peers(&self) -> Vec<&Arc<NodeRef>> {

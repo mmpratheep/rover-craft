@@ -1,14 +1,17 @@
 use std::ffi::OsString;
+use std::fmt;
 use std::ops::Deref;
-use std::sync::{RwLock};
-use log::{debug, error, info};
+use std::sync::RwLock;
+
+use log::debug;
 use tonic::Status;
 use tonic::transport::Channel;
-use crate::grpc::node::{get_channel, Node};
+
+use crate::grpc::node::get_channel;
 use crate::grpc::node_status::NodeStatus;
 use crate::grpc::node_status::NodeStatus::Dead;
-use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
 use crate::grpc::service::cluster::{AnnounceAliveNotServingRequest, AnnounceAliveServingRequest, HealthCheckRequest};
+use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
 use crate::grpc::service::cluster::partition_proto_client::PartitionProtoClient;
 
 #[derive(Debug)]
@@ -17,6 +20,12 @@ pub struct NodeRef {
     pub node_status: RwLock<NodeStatus>,
     health_check_client: HealthCheckClient<Channel>,
     proto_partition_client: Option<PartitionProtoClient<Channel>>,
+}
+
+impl fmt::Display for NodeRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} -> {:?}", &self.host_name, self.node_status.read().unwrap().deref())
+    }
 }
 
 
