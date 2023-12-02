@@ -9,7 +9,7 @@ use crate::store::memory_store::MemoryStore;
 
 #[derive(Clone, Debug)]
 pub struct LeaderNode {
-    //todo arc
+
     pub(crate) node: Arc<Node>,
     //todo handle delta data removal
     pub(crate) delta_data: Option<MemoryStore>,
