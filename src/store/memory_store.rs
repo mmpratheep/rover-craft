@@ -35,7 +35,7 @@ impl MemoryStore {
     }
 
     pub fn de_serialise_and_update(&self, serialised_data: Vec<ProbeProto>) {
-        println!("de_serialising data");
+        log::info!("de_serialising data");
         for data in serialised_data {
             let probe = Probe::from_probe_proto(data);
             self.probes.entry(probe.probe_id.clone())

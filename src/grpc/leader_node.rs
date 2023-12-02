@@ -23,10 +23,18 @@ impl fmt::Display for LeaderNode {
 
 impl LeaderNode {
     pub(crate) async fn write_probe_to_store_and_delta(&self, partition_id: usize, probe: &Probe) -> Result<(), Status> {
-        if self.delta_data.is_some() {
-            self.delta_data.clone().unwrap().save_probe(probe);
-        }
+        self.write_to_delta_if_exists(probe);
         self.node.write_probe_to_store(partition_id, true, probe).await
+    }
+
+    pub fn write_to_delta(&self, probe: &Probe) {
+        self.delta_data.clone().unwrap().save_probe(probe);
+    }
+    pub fn write_to_delta_if_exists(&self, probe: &Probe) {
+        if self.delta_data.is_some() {
+            log::info!("Written to delta");
+            self.write_to_delta(probe);
+        }
     }
 
     pub fn remove_delta_data(&mut self) {

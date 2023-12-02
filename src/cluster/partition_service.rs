@@ -8,6 +8,7 @@ use crate::grpc::node::Node;
 use crate::grpc::node_manager::NodeManager;
 use crate::grpc::node_ref::NodeRef;
 use crate::grpc::service::cluster::{AnnounceAliveNotServingRequest, AnnounceAliveServingRequest};
+use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
 #[derive(Debug, Default)]
@@ -37,6 +38,15 @@ impl PartitionService {
         {
             leaders = self.leader_nodes.read().unwrap();
             let leader_ref = leaders.get(partition_id).expect("No leader to get");
+            return leader_ref.node.clone();
+        }
+    }
+    pub async fn get_leader_and_write_delta(&self, partition_id: usize, probe: &Probe) -> Arc<Node> {
+        let leaders;
+        {
+            leaders = self.leader_nodes.read().unwrap();
+            let leader_ref = leaders.get(partition_id).expect("No leader to get");
+            leader_ref.write_to_delta_if_exists(probe);
             return leader_ref.node.clone();
         }
     }
@@ -95,10 +105,10 @@ impl PartitionService {
     }
 
     pub fn get_leader_delta_data(&self, partition_id: usize) -> Option<MemoryStore> {
-        println!("Came here...");
+        log::debug!("Came here...");
         let leaders = self.leader_nodes.read().unwrap();
         {
-            println!("Also here...");
+            log::debug!("Also here...");
             return leaders.get(partition_id).unwrap().delta_data.clone()
         }
     }
@@ -111,8 +121,8 @@ impl PartitionService {
             let partition_id = hash % self.partition_size;
             leaders = self.leader_nodes.read().unwrap();
             followers = self.follower_nodes.read().unwrap();
-            println!("leader partition id: {}", partition_id);
-            println!("follower partition id: {}", partition_id);
+            log::info!("leader partition id: {}", partition_id);
+            log::info!("follower partition id: {}", partition_id);
             let leader_ref = leaders.get(partition_id).expect("No leader to get");
             let follower_ref = followers.get(partition_id).expect("No follower to get");
 
@@ -123,12 +133,12 @@ impl PartitionService {
 
     fn print_leader(&self, log_text: &str) {
         let leaders: Vec<String> = self.leader_nodes.read().unwrap().iter().map(|it| it.to_string()).collect();
-        println!("{} leaders: {:?}", log_text, leaders);
+        log::info!("{} leaders: {:?}", log_text, leaders);
     }
 
     fn print_follower(&self, log_text: &str) {
         let followers: Vec<String> = self.follower_nodes.read().unwrap().iter().map(|it| it.to_string()).collect();
-        println!("{} followers: {:?}", log_text, followers);
+        log::info!("{} followers: {:?}", log_text, followers);
     }
 
     pub(crate) async fn balance_partitions_and_write_delta_data(&self) {
@@ -142,26 +152,26 @@ impl PartitionService {
         for i in 0..leader_nodes.len() {
             let leader_node = leader_nodes.get(i).unwrap();
             let follower_node = follower_nodes.get(i).unwrap();
-            println!("leader {}", leader_node.node.node_ref.host_name);
-            println!("follower {}", follower_node.node_ref.host_name);
+            log::info!("leader {}", leader_node.node.node_ref.host_name);
+            log::info!("follower {}", follower_node.node_ref.host_name);
 
             if leader_node.node.is_node_down() {
-                println!("down leader {}", leader_node.node.node_ref.host_name);
+                log::info!("down leader {}", leader_node.node.node_ref.host_name);
                 let  delta_data: Option<MemoryStore> = if follower_node.is_current_node() {Some(MemoryStore::new())} else {None};
                 let mut guard = self.leader_nodes.write().unwrap();
                 guard[i] = LeaderNode { node: follower_node.clone(), delta_data };
             }
 
             if follower_node.is_node_down() {
-                println!("down follower {}", follower_node.node_ref.host_name);
-                println!("leader {}", leader_node.node.node_ref.host_name);
+                log::info!("down follower {}", follower_node.node_ref.host_name);
+                log::info!("leader {}", leader_node.node.node_ref.host_name);
                 if leader_node.node.is_current_node() {
                     match self.leader_nodes.write() {
                         Ok(mut nodes) => {
                             nodes[i].delta_data = Some(MemoryStore::new());
                         }
                         Err(err) => {
-                            println!("Failed to acquire write lock to create delta-data map {}",err);
+                            log::error!("Failed to acquire write lock to create delta-data map {}",err);
                         }
                     }
                 }
@@ -178,12 +188,13 @@ impl PartitionService {
         self.nodes.make_node_alive_and_not_serving(&node_host_name);
         match self.leader_nodes.write() {
             Ok(mut l_nodes) => {
-                println!("Got write lock for leader nodes");
+                log::info!("Got write lock for leader nodes");
                 match self.follower_nodes.write() {
                     Ok(mut f_nodes) => {
-                        println!("Got write lock for follower nodes");
+                        log::info!("Got write lock for follower nodes");
                         for i in req_data.leader_partitions.clone() {
                             let index = i as usize;
+                            //todo imp I think we can skip this
                             f_nodes[index] = l_nodes[index].node.clone();
                             //when node is back, we need to keep the delta data there in the leader, and move the data to the follower and create connection to from leader partition
                             l_nodes[index].node = Arc::new(Node::new(
@@ -192,12 +203,12 @@ impl PartitionService {
                         }
                     }
                     Err(err) => {
-                        println!("Failed to get write lock for followers {}",err)
+                        log::error!("Failed to get write lock for followers {}",err)
                     }
                 }
             }
             Err(err) => {
-                println!("Failed to get write lock for leaders {}",err)
+                log::error!("Failed to get write lock for leaders {}",err)
             }
         };
 
@@ -222,7 +233,7 @@ impl PartitionService {
                 }
             }
             Err(err) => {
-                println!("Failed to get write lock for leaders {}",err)
+                log::error!("Failed to get write lock for leaders {}",err)
             }
         }
         self.print_leader("After alive and serving,");
@@ -242,7 +253,7 @@ impl PartitionService {
     }
 
     pub (crate) fn is_current_node_dead(&self) -> bool {
-        println!("current node status in health check {:?}", self.nodes.get_current_node().unwrap().node_status.read().unwrap().deref());
+        // println!("current node status in health check {:?}", self.nodes.get_current_node().unwrap().node_status.read().unwrap().deref());
         self.nodes.get_current_node().unwrap().is_dead()
     }
 
@@ -267,17 +278,17 @@ impl PartitionService {
             let alive_peer_node = self.nodes.get_node(&peer_node.host_name).unwrap().clone();
 
             let current_node = self.nodes.get_current_node().unwrap();
-            println!("making current node alive");
+            log::info!("making current node alive");
             self.nodes.make_node_alive_and_serving(&current_node.host_name);
 
             let current_node_leader_partitions = self.get_leader_partition_ids(&current_node.host_name);
-            println!("Announce alive and not serving, for partitions: {:?}", current_node_leader_partitions);
+            log::info!("Announce alive and not serving, for partitions: {:?}", current_node_leader_partitions);
             alive_peer_node.announce_me_alive_not_serving(&current_node.host_name, &current_node_leader_partitions).await;
         }
 
-        println!("Handling recovery");
+        log::info!("Handling recovery");
         self.recover_current_node().await;
-        println!("Announce alive and serving");
+        log::info!("Announce alive and serving");
         self.announce_alive_and_serving().await
     }
 
@@ -287,43 +298,43 @@ impl PartitionService {
         let current_node_follower_partition_ids = self.get_follower_partition_ids(&current_node.host_name);
 
         //todo IMP optimise: get delta data in parallel from other nodes
-        println!("Catching up the leader partitions");
+        log::info!("Catching up the leader partitions");
 
         for partition_id in current_node_leader_partition_ids.clone().iter() {
             let leader_s_follower_partition = self.get_follower_node(partition_id.clone() as usize).await;
-            println!("leader partition_id: {}, follower partition host: {}", &partition_id, &leader_s_follower_partition.node_ref.host_name);
+            log::info!("leader partition_id: {}, follower partition host: {}", &partition_id, &leader_s_follower_partition.node_ref.host_name);
             let result = leader_s_follower_partition
                 .get_delta_data_from_peer(partition_id.clone()).await;
 
             match result {
                 Ok(delta_data) => {
-                    println!("Received delta data, updating the partition");
+                    log::info!("Received delta data, updating the partition");
                     let leader = self.get_leader_node(partition_id.clone() as usize).await;
                     leader.update_with_delta_data(delta_data.into_inner());
-                    println!("updated the partition");
+                    log::info!("updated the partition");
                 }
                 Err(err) => {
-                    println!("Err Delta data leader: {} : {}", leader_s_follower_partition.node_ref.host_name, err)
+                    log::error!("Err Delta data leader: {} : {}", leader_s_follower_partition.node_ref.host_name, err)
                 }
             }
         }
-        println!("Catching up the follower partitions");
+        log::info!("Catching up the follower partitions");
 
         for partition_id in current_node_follower_partition_ids.clone().iter() {
             let follower_s_leader_partitions = self.get_leader_node(partition_id.clone() as usize).await;
-            println!("partition_id: {}, partition: {}", &partition_id, &follower_s_leader_partitions.node_ref.host_name);
+            log::info!("partition_id: {}, partition: {}", &partition_id, &follower_s_leader_partitions.node_ref.host_name);
             let result = follower_s_leader_partitions
                 .get_delta_data_from_peer(partition_id.clone()).await;
 
             match result {
                 Ok(delta_data) => {
-                    println!("Received delta data, updating the partition");
+                    log::info!("Received delta data, updating the partition");
                     let follower = self.get_follower_node(partition_id.clone() as usize).await;
                     follower.update_with_delta_data(delta_data.into_inner());
-                    println!("updated the partition");
+                    log::info!("updated the partition");
                 }
                 Err(err) => {
-                    println!("Err Delta data follower: {}", err)
+                    log::error!("Err Delta data follower: {}", err)
                 }
             }
         }

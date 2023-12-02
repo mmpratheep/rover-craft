@@ -34,9 +34,9 @@ impl NodeRef {
         Self {
             host_name: host_name.clone(),
             node_status: RwLock::new(NodeStatus::AliveServing),
-            health_check_client: HealthCheckClient::new(get_channel(&host_name)),
+            health_check_client: HealthCheckClient::new(get_channel(&host_name,100)),
             //todo handle creation of channel to current node
-            proto_partition_client: Some(PartitionProtoClient::new(get_channel(&host_name))),
+            proto_partition_client: Some(PartitionProtoClient::new(get_channel(&host_name,200))),
         }
     }
 
@@ -71,7 +71,7 @@ impl NodeRef {
 
     pub async fn announce_me_alive_not_serving(&self, hostname: &String, leader_partitions: &Vec<u32>) {
         if self.proto_partition_client.is_some() {
-            println!("Making node alive and not serving... {}", &hostname);
+            log::info!("Making node alive and not serving... {}", &hostname);
             let request = tonic::Request::new(AnnounceAliveNotServingRequest {
                 host_name: hostname.clone(),
                 leader_partitions: leader_partitions.clone(),
@@ -79,10 +79,10 @@ impl NodeRef {
             let response = self.proto_partition_client.clone().unwrap().make_node_alive_not_serving(request).await;
             match response {
                 Ok(_val) => {
-                    println!("Made node alive and not serving in: {}",hostname);
+                    log::info!("Made node alive and not serving in: {}",hostname);
                 }
                 Err(err) => {
-                    println!("error while announcing alive and not serving: {}", err);
+                    log::error!("error while announcing alive and not serving: {}", err);
                 }
             }
         }
@@ -90,7 +90,7 @@ impl NodeRef {
 
     pub async fn announce_me_alive_and_serving(&self, hostname: &String, leader_partitions: Vec<u32>, follower_partitions: Vec<u32>) {
         if self.proto_partition_client.is_some() {
-            println!("Making node alive and serving... {}", self.host_name);
+            log::info!("Making node alive and serving... {}", self.host_name);
             let request = tonic::Request::new(AnnounceAliveServingRequest {
                 host_name: hostname.clone(),
                 leader_partitions,
@@ -99,10 +99,10 @@ impl NodeRef {
             let response = self.proto_partition_client.clone().unwrap().make_node_alive_serving(request).await;
             match response {
                 Ok(_val) => {
-                    println!("Made node alive and serving in: {}",self.host_name);
+                    log::info!("Made node alive and serving in: {}",self.host_name);
                 }
                 Err(err) => {
-                    println!("Error while announcing alive and serving: {}", err);
+                    log::error!("Error while announcing alive and serving: {}", err);
                 }
             }
         }

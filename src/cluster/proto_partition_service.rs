@@ -17,7 +17,7 @@ impl PartitionProto for ProtoPartitionService {
     async fn make_node_alive_not_serving(&self, request: Request<AnnounceAliveNotServingRequest>) -> Result<Response<Empty>, Status> {
         //todo
         let req_data = request.into_inner();
-        println!("Make alive and not serving host: {} : partitions {:?}", req_data.host_name, req_data.leader_partitions);
+        log::info!("Make alive and not serving host: {} : partitions {:?}", req_data.host_name, req_data.leader_partitions);
         self.partition_service.read().await.make_node_alive_and_not_serving(&req_data).await;
         Ok(Response::new(Empty {}))
     }

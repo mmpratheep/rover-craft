@@ -61,7 +61,7 @@ impl Node {
                 store.de_serialise_and_update(partition.probe_array);
             }
             NetworkNode::RemoteStore(_) => {
-                println!("The data is not present in the current node")
+                log::error!("The data is not present in the current node")
             }
         }
 
@@ -77,7 +77,7 @@ impl Node {
         }
         Self {
             node_ref:node_ref.clone(),
-            probe_store: NetworkNode::RemoteStore(ProbeSyncClient::new(get_channel(&node_ref.host_name))),
+            probe_store: NetworkNode::RemoteStore(ProbeSyncClient::new(get_channel(&node_ref.host_name, 500))),
         }
     }
 
@@ -103,7 +103,7 @@ impl Node {
                 Ok(store.get_probe(&probe_id))
             }
             NetworkNode::RemoteStore(remote_store) => {
-                println!("Starting Remote read call: ");
+                log::info!("Starting Remote read call: ");
                 let response = Self::read_remote_store(remote_store.clone(), partition_id, is_leader, probe_id).await;
                 Self::get_probe_from_response(response)
             }
@@ -118,13 +118,13 @@ impl Node {
             }
             NetworkNode::RemoteStore(remote_store) => {
                 let response = Self::write_remote_store(remote_store.clone(), partition_id, is_leader, probe).await;
-                println!("Starting Remote write call");
+                log::info!("Starting Remote write call");
                 match response {
                     Ok(_val) => {
                         Ok(())
                     }
                     Err(err) => {
-                        println!("{}", err);
+                        log::error!("{}", err);
                         Err(err)
                     }
                 }
@@ -139,7 +139,7 @@ impl Node {
                 Ok(Some(Probe::from_probe_proto(val.into_inner())))
             }
             Err(err) => {
-                println!("Err from remote read for: {}", err);
+                log::error!("Err from remote read for: {}", err);
                 return Self::parse_error(err);
             }
         };
@@ -177,9 +177,8 @@ impl Node {
     }
 }
 
-pub  fn get_channel(address: &String) -> Channel {
-    println!("Channel to connect: {}", address);
-    let time_out = 500;
+pub  fn get_channel(address: &String, time_out: u64) -> Channel {
+    log::info!("Channel to connect: {}", address);
     match Channel::from_shared(address.clone()) {
         Ok(endpoint) => endpoint,
         Err(err) => {

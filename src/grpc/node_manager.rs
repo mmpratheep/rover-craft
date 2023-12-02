@@ -52,7 +52,7 @@ impl NodeManager {
         *guard = status;
         //todo remove below while taking to prod
         drop(guard);
-        println!("After state change host: {}, status: {:?}", node.unwrap().host_name, node.unwrap().node_status.read())
+        log::info!("After state change host: {}, status: {:?}", node.unwrap().host_name, node.unwrap().node_status.read())
     }
 
     pub fn get_node(&self, node_host: &String) -> Option<Arc<NodeRef>> {
@@ -61,7 +61,7 @@ impl NodeManager {
                 Some(Arc::clone(node))
             }
             None => {
-                println!("Unable to get existing node, So creating new one");
+                log::error!("Unable to get existing node, So creating new one");
                 None
             }
         };

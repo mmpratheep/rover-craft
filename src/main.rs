@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::Write;
 use std::{env, process};
 use std::sync::{Arc, RwLock};
-use log::{error, info};
+use log::{error, info, LevelFilter};
 use std::string::String;
 use tokio::sync::{mpsc, RwLock as TrwLock};
 
@@ -35,14 +35,15 @@ static INITIAL_CLUSTER: &str = "initial-cluster";
 async fn main() {
     write_pid();
     let parsed_argument = parse_args(env::args());
-    print!("Args : {:?}", parsed_argument);
+    env_logger::builder().filter_level(LevelFilter::Info).init();
+    log::info!("Args : {:?}", parsed_argument);
     let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).or(Some(&"http://localhost:9000".to_string())).expect("Missing listen-client-urls"));
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).or(Some(&"http://localhost:9001".to_string())).expect("Missing listen-peer-urls"));
     let address = format!("0.0.0.0:{}", peer_port).parse().unwrap();
-    println!("gRPC local address: {}", address);
+    log::info!("gRPC local address: {}", address);
     let peer_host_names = get_peer_hostnames(parsed_argument, peer_port);
 
-    println!("{}", peer_host_names[0]);
+    log::info!("{}", peer_host_names[0]);
 
     let (tx, mut rx) = mpsc::channel::<String>(1);
 
@@ -67,7 +68,7 @@ async fn main() {
 }
 
 fn print_info(listen_port: u16, peer_port: u16) {
-    println!(
+    log::info!(
         "
    / __ \\____ _   _____  ___________________ _/ __/ /_
   / /_/ / __ \\ | / / _ \\/ ___/ ___/ ___/ __ `/ /_/ __/
@@ -75,8 +76,8 @@ fn print_info(listen_port: u16, peer_port: u16) {
 /_/ |_|\\____/|___/\\___/_/   \\___/_/   \\__,_/_/  \\__/
 "
     );
-    println!("Started listener on {}", listen_port);
-    println!("Started peer listener on {}", peer_port);
+    log::info!("Started listener on {}", listen_port);
+    log::info!("Started peer listener on {}", peer_port);
 }
 
 fn get_peer_hostnames(parsed_argument: HashMap<String, String>, peer_port: u16) -> Vec<String> {
@@ -88,7 +89,7 @@ fn get_peer_hostnames(parsed_argument: HashMap<String, String>, peer_port: u16) 
 
 fn write_pid() {
     let process_id = format!("{}", process::id());
-    println!("Current process Id is {}", &process_id);
+    log::info!("Current process Id is {}", &process_id);
     let mut file = File::options().create(true).write(true).append(false).open("./rovercraft.pid").unwrap();
     file.write_all(&process_id.as_bytes())
         .unwrap();

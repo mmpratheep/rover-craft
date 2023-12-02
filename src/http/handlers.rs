@@ -21,7 +21,7 @@ pub async fn update_probe(
 ) -> Result<impl Reply, Rejection> {
     let probe = Probe::create_probe(probe_id, probe_request);
     //todo remove await here
-    store.upsert_value(probe.clone()).await;
+    store.upsert_value(probe.clone(),tx).await;
 
     Ok(json(&probe))
 }
