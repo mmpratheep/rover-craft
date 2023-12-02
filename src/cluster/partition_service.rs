@@ -17,11 +17,11 @@ pub(crate) struct PartitionService {
     leader_nodes: RwLock<Vec<LeaderNode>>,
     follower_nodes: RwLock<Vec<Arc<Node>>>,
     partition_size: usize,
-    nodes: Arc<NodeManager>,
+    nodes: NodeManager,
 }
 
 impl PartitionService {
-    pub fn new(nodes: Arc<NodeManager>) -> Self {
+    pub fn new(nodes: NodeManager) -> Self {
         let (leaders, followers, partition_size) =
             Self::initialise_partitions(nodes.nodes.clone());
         PartitionService {

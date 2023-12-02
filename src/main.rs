@@ -46,8 +46,7 @@ async fn main() {
 
     let (tx, mut rx) = mpsc::channel::<String>(1);
 
-    let node_manager = Arc::new(NodeManager::initialise_nodes(peer_host_names).await);
-    let partition_service = Arc::new(TrwLock::new(PartitionService::new(node_manager.clone())));
+    let partition_service = Arc::new(TrwLock::new(PartitionService::new(NodeManager::initialise_nodes(peer_host_names))));
     let store = Arc::new(PartitionManager {
         partition_service: partition_service.clone()
     });

@@ -10,7 +10,7 @@ pub struct NodeManager {
 }
 
 impl NodeManager {
-    pub async fn initialise_nodes(node_hosts: Vec<String>) -> Self {
+    pub fn initialise_nodes(node_hosts: Vec<String>) -> Self {
         let mut nodes: Vec<Arc<NodeRef>> = Vec::with_capacity(node_hosts.len());
         for node_host in node_hosts {
             nodes.push(
