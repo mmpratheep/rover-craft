@@ -6,10 +6,11 @@ use std::{env, process};
 use std::sync::{Arc, RwLock};
 use log::{error, info, LevelFilter};
 use std::string::String;
-use tokio::sync::{mpsc, RwLock as TrwLock};
+use tokio::sync::{mpsc, RwLock as TrwLock, watch};
 
 use tonic::transport::Server as GrpcServer;
-use crate::cluster::health_check_service::HealthCheckService;
+use warp::ws::Message;
+use crate::cluster::health_check_service::{HealthCheckService, ThreadMessage};
 use crate::cluster::partition_manager::PartitionManager;
 use crate::cluster::partition_service::PartitionService;
 use crate::cluster::proto_partition_service::ProtoPartitionService;
@@ -45,15 +46,15 @@ async fn main() {
 
     log::info!("{}", peer_host_names[0]);
 
-    let (tx, mut rx) = mpsc::channel::<String>(1);
+    let (request_tx, mut request_rx) = mpsc::channel::<ThreadMessage>(1);
 
     let partition_service = Arc::new(TrwLock::new(PartitionService::new(NodeManager::initialise_nodes(peer_host_names))));
     let store = Arc::new(PartitionManager {
         partition_service: partition_service.clone()
     });
-    let http_server = tokio::spawn(setup_controller(listen_port, store.clone(),tx));
+    let http_server = tokio::spawn(setup_controller(listen_port, store.clone(),request_tx));
 
-    let health_check_future = tokio::spawn(HealthCheckService::start_health_check(partition_service.clone(), rx));
+    let health_check_future = tokio::spawn(HealthCheckService::start_health_check(partition_service.clone(), request_rx));
     let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
