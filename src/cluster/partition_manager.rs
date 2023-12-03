@@ -144,16 +144,23 @@ impl PartitionManager {
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
         log::info!("write request {} -> {:?} ", partition_id, probe);
         match join!(self.write_to_leader(&probe, &tx, leader_node, partition_id), self.write_to_follower(&probe, &tx, follower_node, partition_id)) {
-            (Some(probe), ()) => {
+            (Some(probe), Some(_)) => {
                 Some(probe)
             }
-            _ => {
+            (Some(probe), None) => {
+                Some(probe)
+            }
+            (None, Some(probe)) => {
+                Some(probe)
+            }
+
+            (None, None) => {
                 None
             }
         }
     }
 
-    async fn write_to_follower(&self, probe: &Probe, tx: &Sender<ThreadMessage>, follower_node: Arc<Node>, partition_id: usize) {
+    async fn write_to_follower(&self, probe: &Probe, tx: &Sender<ThreadMessage>, follower_node: Arc<Node>, partition_id: usize) -> Option<Probe> {
 
         //you need to write to delta data in leader if the delta data is present, and the follower node will take care of handling original read and write
         let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
@@ -161,6 +168,7 @@ impl PartitionManager {
         match res {
             Ok(_probe_response) => {
                 log::info!("successfully written to follower");
+                Some(probe.clone())
             }
             Err(_err) => {
                 log::warn!("Err: follower down while writing");
@@ -168,12 +176,15 @@ impl PartitionManager {
                 log::warn!("writing to delta in a leader partition");
                 let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
                 let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
+
                 match result {
                     Ok(_probe_response) => {
                         log::info!("successfully written delta to leader after re-balance");
+                        Some(probe.clone())
                     }
                     Err(_err) => {
                         log::error!("Err: Should not reach here after follower re-balance");
+                        None
                     }
                 }
             }
