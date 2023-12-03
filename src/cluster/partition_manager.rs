@@ -53,62 +53,85 @@ impl PartitionManager {
         //todo clone
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await
             .get_partition_nodes(&probe_id).await;
-        log::info!("read request {:?}", probe_id);
-        log::info!("partition-id: {:?}", partition_id);
+        log::info!("read request {}, {}", probe_id, partition_id);
+
+        match join!(Self::read_from_leader(&probe_id, leader_node, partition_id, tx.clone()),
+            Self::read_from_follower(&probe_id, follower_node, partition_id, tx.clone())
+        ) {
+            (Some(leader_probe), Some(follower_probe)) => {
+                if leader_probe.event_date_time >= follower_probe.event_date_time {
+                    log::info!("returning from leader {}", probe_id);
+                    return Some(leader_probe);
+                }
+                log::info!("returning from follower {}", probe_id);
+                Some(follower_probe)
+
+            }
+            (Some(leader_probe), None) => {
+                Some(leader_probe)
+            }
+            (None, Some(follower_probe)) => {
+                Some(follower_probe)
+            }
+            (None, None) => {
+                None
+            }
+        }
+
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing -> then read from that
         //todo else read from the follower partition
-        return match leader_node.node.node_status() {
-            NodeStatus::AliveServing => {
-                Self::read_from_leader_first(&probe_id, leader_node, follower_node, partition_id, tx).await
-            }
-            NodeStatus::AliveNotServing => {
-                log::info!("Reading from follower as the leader is alive and not serving");
-                let result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
-                return match result {
-                    Ok(val) => {
-                        val
-                    }
-                    Err(error) => {
-                        log::error!("Error while getting data from follower when leader is alive and not serving, so reading from leader now {}", error);
-                        let result = leader_node.node.read_probe_from_store(partition_id, true, &probe_id).await;
-                        return match result {
-                            Ok(probe) => {
-                                log::info!("Read data: {:?}", probe);
-                                probe
-                            }
-                            Err(err) => {
-                                log::warn!("Leader went down while reading {}", err);
-                                None
-                            }
-                        }
-                    }
-                };
-            }
-            NodeStatus::Dead => {
-                log::warn!("leader down while reading, reading from follower");
-                if leader_node.node.is_current_node(){
-                    log::error!("WARNING!!!!!!!!!, received request when current node is down");
-                }
-                let result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
-                return match result {
-                    Ok(val) => {
-                        val
-                    }
-                    Err(error) => {
-                        log::error!("!!!!!!!!this should not happen {}", error);
-                        None
-                    }
-                };
-            }
-        };
+        // return match leader_node.node.node_status() {
+        //     NodeStatus::AliveServing => {
+        //         Self::read_from_leader(&probe_id, leader_node, follower_node, partition_id, tx).await
+        //     }
+        //     NodeStatus::AliveNotServing => {
+        //         log::info!("Reading from follower as the leader is alive and not serving");
+        //         let result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
+        //         return match result {
+        //             Ok(val) => {
+        //                 val
+        //             }
+        //             Err(error) => {
+        //                 log::error!("Error while getting data from follower when leader is alive and not serving, so reading from leader now {}", error);
+        //                 let result = leader_node.node.read_probe_from_store(partition_id, true, &probe_id).await;
+        //                 return match result {
+        //                     Ok(probe) => {
+        //                         log::info!("Read data: {:?}", probe);
+        //                         probe
+        //                     }
+        //                     Err(err) => {
+        //                         log::warn!("Leader went down while reading {}", err);
+        //                         None
+        //                     }
+        //                 }
+        //             }
+        //         };
+        //     }
+        //     NodeStatus::Dead => {
+        //         log::warn!("leader down while reading, reading from follower");
+        //         if leader_node.node.is_current_node(){
+        //             log::error!("WARNING!!!!!!!!!, received request when current node is down");
+        //         }
+        //         let result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
+        //         return match result {
+        //             Ok(val) => {
+        //                 val
+        //             }
+        //             Err(error) => {
+        //                 log::error!("!!!!!!!!this should not happen {}", error);
+        //                 None
+        //             }
+        //         };
+        //     }
+        // };
     }
 
-    async fn read_from_leader_first(probe_id: &String, leader_node: LeaderNode, follower_node: Arc<Node>, partition_id: usize, tx: Sender<ThreadMessage>) -> Option<Probe> {
+    async fn read_from_leader(probe_id: &String, leader_node: LeaderNode, partition_id: usize, tx: Sender<ThreadMessage>) -> Option<Probe> {
         let result = leader_node.node.read_probe_from_store(partition_id, true, &probe_id).await;
 
         return match result {
             Ok(probe) => {
-                log::info!("Read data: {:?}", probe);
+                log::info!("Read data from leader: {:?}", probe);
                 probe
             }
             Err(err) => {
@@ -116,23 +139,36 @@ impl PartitionManager {
                 tx.send(ThreadMessage {
                     hostname: leader_node.node.node_ref.host_name.clone(),
                     response_sender: None,
-                }).await.expect("Err couldn't send leader down message via channel to health check ");
+                }).await.expect("Err couldn't send leader down message via channel to read the data");
+                None
+            }
+        }
+    }
 
-                //todo explicitly tell the follower node to rebalance the partition by sending the dead node ip, then make the request to the follower to get the probe from partition
-                let fallback_result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
-                match fallback_result {
-                    Ok(fallback_probe) => {
-                        return fallback_probe;
+    async fn read_from_follower(probe_id: &String, follower_node: Arc<Node>, partition_id: usize, tx: Sender<ThreadMessage>) -> Option<Probe> {
+        let result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
+
+        return match result {
+            Ok(probe) => {
+                match probe {
+                    Some(value)  => {
+                        log::info!("Read data from follower: {}", value);
+                        Some(value)
                     }
-                    Err(err) => {
-                        log::error!("Couldn't read value from follower when leader went down, {}",err);
+                    None => {
                         None
                     }
                 }
-                //todo handle re-balance
             }
-        };
-        None
+            Err(err) => {
+                log::warn!("Follower went down while reading {}", err);
+                tx.send(ThreadMessage {
+                    hostname: follower_node.node_ref.host_name.clone(),
+                    response_sender: None,
+                }).await.expect("Err couldn't send leader down message via channel to read the data");
+                None
+            }
+        }
     }
 
     pub async fn upsert_value(&self, probe: Probe, tx: Sender<ThreadMessage>) -> Option<Probe> {

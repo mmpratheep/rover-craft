@@ -1,3 +1,4 @@
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -20,6 +21,12 @@ pub struct Probe {
 impl Hash for Probe {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.probe_id.hash(state);
+    }
+}
+
+impl fmt::Display for Probe {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{},{},{}", &self.probe_id, self.event_id, self.event_date_time)
     }
 }
 
