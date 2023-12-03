@@ -43,6 +43,9 @@ impl NodeRef {
     pub fn is_dead(&self) -> bool {
         *self.node_status.read().unwrap().deref() == Dead
     }
+    pub fn make_node_dead(&self) {
+        *self.node_status.write().unwrap() = Dead;
+    }
 
     pub fn is_current_node(&self) -> bool {
         Self::is_same_node(&self.host_name)

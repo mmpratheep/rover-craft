@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use log::debug;
-use tokio::sync::RwLock;
+use tokio::sync::{oneshot, RwLock};
 use tokio::sync::mpsc::Receiver;
 use tokio::time::{interval, Interval, sleep};
 use tonic::{Request, Response, Status};
@@ -17,6 +17,12 @@ use crate::grpc::service::cluster::health_check_server::HealthCheck;
 #[derive(Debug, Default, Clone)]
 pub(crate) struct HealthCheckService {}
 
+pub struct ThreadMessage {
+    pub(crate) hostname: String,
+    pub(crate) response_sender: Option<oneshot::Sender<()>>,
+}
+
+
 #[tonic::async_trait]
 impl HealthCheck for HealthCheckService {
     async fn health_check(&self, _: Request<HealthCheckRequest>) -> Result<Response<HealthCheckResponse>, Status> {
@@ -27,7 +33,7 @@ impl HealthCheck for HealthCheckService {
 }
 
 impl HealthCheckService {
-    pub async fn start_health_check(partition_service: Arc<RwLock<PartitionService>>, mut health_check_receiver: Receiver<String>) {
+    pub async fn start_health_check(partition_service: Arc<RwLock<PartitionService>>, mut health_check_receiver: Receiver<ThreadMessage>) {
         sleep(Duration::from_secs(5)).await;
         let mut interval = interval(Duration::from_millis(500));
         let read_lock = partition_service.read().await;
@@ -41,35 +47,45 @@ impl HealthCheckService {
                     log::debug!("Health check");
                     Self::health_check(&partition_service, &mut interval,&peer_nodes,re_balance_partitions).await;
                 }
-                hostname = health_check_receiver.recv() => {
+                thread_message = health_check_receiver.recv() => {
                     //todo remove already dead peer node
                     let mut re_balance_partitions = false;
+                    let message = thread_message.unwrap();
+                    let hostname = message.hostname;
                     let read_lock = partition_service.read().await;
 
                     let peer_nodes = read_lock.get_peers().await.clone();
                     let peer_alive_nodes = peer_nodes
                         .iter()
-                        .filter(|it| it.host_name != hostname.clone().unwrap())
+                        .filter(|it| it.host_name != hostname)
                         .map(|arc_ref| &**arc_ref)
                         .collect();
                     let peer_dead_node = peer_nodes
                         .iter()
-                        .find(|it| it.host_name == hostname.clone().unwrap());
+                        .find(|it| it.host_name == hostname);
+                    log::info!("dead node: {}, peer node: {:?}",hostname, peer_alive_nodes);
 
-
-                    Self::mark_node_down(&partition_service, &mut re_balance_partitions, peer_dead_node.unwrap()).await;
+                    Self::mark_node_down(&mut re_balance_partitions, peer_dead_node.unwrap()).await;
                     // External event received, trigger immediate execution
                     log::info!("external triggered it");
                     Self::health_check(&partition_service, &mut interval,&peer_alive_nodes,re_balance_partitions).await;
+                    log::info!("Sending the response");
+                    match message.response_sender{
+                        None => {}
+                        Some(val) =>{
+                            val.send(()).expect("the receiver dropped");
+                        }
+                    };
                 }
             }
         }
     }
 
+
     async fn health_check(partition_service: &Arc<RwLock<PartitionService>>,
                           interval: &mut Interval,
                           peer_nodes: &Vec<&Arc<NodeRef>>,
-                          mut re_balance_partitions: bool
+                          mut re_balance_partitions: bool,
     ) {
         let mut handle_recovery = false;
         log::debug!("Starting health check ");
@@ -88,7 +104,7 @@ impl HealthCheckService {
                 }
                 Err(_err) => {
                     // log::error!("Couldn't connect to node {}", peer_node.host_name);
-                    Self::mark_node_down(partition_service, &mut re_balance_partitions, peer_node).await;
+                    Self::mark_node_down(&mut re_balance_partitions, peer_node).await;
                 }
             }
         }
@@ -110,11 +126,11 @@ impl HealthCheckService {
         }
     }
 
-    async fn mark_node_down(partition_service: &Arc<RwLock<PartitionService>>, re_balance_partitions: &mut bool, peer_node: &&Arc<NodeRef>) {
+    async fn mark_node_down(re_balance_partitions: &mut bool, peer_node: &&Arc<NodeRef>) {
         if *peer_node.node_status.read().unwrap().deref() != Dead {
+            peer_node.make_node_dead();
             *re_balance_partitions = true;
-            log::warn!("Making node dead {}", peer_node.host_name);
-            partition_service.read().await.make_node_dead(&peer_node.host_name);
+            log::warn!("Made node dead {}, {:?}", peer_node.host_name, peer_node.node_status);
         }
     }
 }
