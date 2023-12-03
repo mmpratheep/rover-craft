@@ -1,21 +1,21 @@
+use std::{env, process};
 use std::collections::HashMap;
 use std::env::Args;
 use std::fs::File;
 use std::io::Write;
-use std::{env, process};
-use std::sync::{Arc, RwLock};
-use log::{error, info, LevelFilter};
 use std::string::String;
-use tokio::sync::{mpsc, RwLock as TrwLock, watch};
+use std::sync::Arc;
+use std::time::Duration;
 
+use log::LevelFilter;
+use tokio::sync::{mpsc, RwLock as TrwLock};
 use tonic::transport::Server as GrpcServer;
-use warp::ws::Message;
+
 use crate::cluster::health_check_service::{HealthCheckService, ThreadMessage};
 use crate::cluster::partition_manager::PartitionManager;
 use crate::cluster::partition_service::PartitionService;
 use crate::cluster::proto_partition_service::ProtoPartitionService;
 use crate::grpc::node_manager::NodeManager;
-
 use crate::grpc::probe_sync_service::ProbeSyncService;
 use crate::grpc::service::cluster::health_check_server::HealthCheckServer;
 use crate::grpc::service::cluster::partition_proto_server::PartitionProtoServer;
@@ -64,6 +64,9 @@ async fn main() {
     let probe_sync_service = ProbeSyncService { partition_manager: store.clone() };
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
+        .tcp_nodelay(true)
+        .tcp_keepalive(Some(Duration::from_secs(20)))
+        .concurrency_limit_per_connection(32usize)
         .add_service(ProbeSyncServer::new(probe_sync_service))
         .add_service(HealthCheckServer::new(HealthCheckService {}))
         .add_service(PartitionProtoServer::new(ProtoPartitionService { partition_service }))

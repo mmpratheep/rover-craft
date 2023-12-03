@@ -44,7 +44,7 @@ impl HealthCheckService {
                 // Wait for the next tick
                 _ = interval.tick() => {
                     let mut re_balance_partitions = false;
-                    log::info!("starting scheduled health check");
+                    log::debug!("starting scheduled health check");
                     Self::health_check(&partition_service, &mut interval,&peer_nodes,re_balance_partitions).await;
                 }
                 thread_message = health_check_receiver.recv() => {
@@ -88,7 +88,6 @@ impl HealthCheckService {
                           mut re_balance_partitions: bool,
     ) {
         let mut handle_recovery = false;
-        log::debug!("Starting health check ");
         for peer_node in peer_nodes {
             log::debug!("Making health check for {}", peer_node.host_name);
             let result = peer_node.do_health_check().await;
