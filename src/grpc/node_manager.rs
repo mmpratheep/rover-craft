@@ -58,7 +58,7 @@ impl NodeManager {
     pub fn get_node(&self, node_host: &String) -> Option<Arc<NodeRef>> {
         return match self.get_single_node(node_host) {
             Some(node) => {
-                Some(Arc::clone(node))
+                Some(node.clone())
             }
             None => {
                 log::error!("Unable to get existing node, So creating new one");
