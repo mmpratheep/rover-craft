@@ -65,8 +65,7 @@ async fn main() {
 
     let grpc_server = tokio::spawn(GrpcServer::builder()
         .tcp_nodelay(true)
-        .tcp_keepalive(Some(Duration::from_secs(20)))
-        .concurrency_limit_per_connection(32usize)
+        .tcp_keepalive(Some(Duration::from_secs(5)))
         .add_service(ProbeSyncServer::new(probe_sync_service))
         .add_service(HealthCheckServer::new(HealthCheckService {}))
         .add_service(PartitionProtoServer::new(ProtoPartitionService { partition_service }))

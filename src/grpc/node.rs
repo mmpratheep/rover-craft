@@ -203,5 +203,8 @@ pub  fn get_channel(address: &String, time_out: u64) -> Channel {
         }
     }
         .timeout(Duration::from_millis(time_out))
+        .tcp_nodelay(true)
+        .tcp_keepalive(Some(Duration::from_secs(5)))
+        .connect_timeout(Duration::from_millis(50))
         .connect_lazy()
 }
