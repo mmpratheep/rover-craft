@@ -2,6 +2,7 @@ use std::sync::{Arc};
 use tokio::sync::{oneshot, RwLock as TrwLock};
 use log::{error, info, warn};
 use tokio::sync::mpsc::Sender;
+use tokio::{join, try_join};
 use warp::ws::Message;
 use crate::cluster::health_check_service::ThreadMessage;
 use crate::cluster::partition_service::PartitionService;
@@ -136,14 +137,50 @@ impl PartitionManager {
 
     pub async fn upsert_value(&self, probe: Probe, tx: Sender<ThreadMessage>) -> Option<Probe> {
         //todo WIP..
-        //todo try to send leader and follower write request in parallel
         //todo what happens when leader is down
         //todo if leader_node.unwrap().node.node_status == NodeStatus::AliveServing & AliveNotServing then write
         //todo else read from the follower partition
         // log::info!("partition-service: {:?}", self.partition_service);
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
-        log::info!("write request {:?}", probe);
-        log::info!("partition-id: {:?}", partition_id);
+        log::info!("write request {} -> {:?} ", partition_id, probe);
+        match join!(self.write_to_leader(&probe, &tx, leader_node, partition_id), self.write_to_follower(&probe, &tx, follower_node, partition_id)) {
+            (Some(probe), ()) => {
+                Some(probe)
+            }
+            _ => {
+                None
+            }
+        }
+    }
+
+    async fn write_to_follower(&self, probe: &Probe, tx: &Sender<ThreadMessage>, follower_node: Arc<Node>, partition_id: usize) {
+
+        //you need to write to delta data in leader if the delta data is present, and the follower node will take care of handling original read and write
+        let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
+        //todo handle this res
+        match res {
+            Ok(_probe_response) => {
+                log::info!("successfully written to follower");
+            }
+            Err(_err) => {
+                log::warn!("Err: follower down while writing");
+                Self::initiate_manual_re_balancing(&tx, follower_node.node_ref.host_name.clone()).await;
+                log::warn!("writing to delta in a leader partition");
+                let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
+                let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
+                match result {
+                    Ok(_probe_response) => {
+                        log::info!("successfully written delta to leader after re-balance");
+                    }
+                    Err(_err) => {
+                        log::error!("Err: Should not reach here after follower re-balance");
+                    }
+                }
+            }
+        }
+    }
+
+    async fn write_to_leader(&self, probe: &Probe, tx: &Sender<ThreadMessage>, leader_node: LeaderNode, partition_id: usize) -> Option<Probe> {
         let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
         let mut final_result = None;
         match result {
@@ -168,33 +205,7 @@ impl PartitionManager {
                 }
             }
         }
-
-        //you need to write to delta data in leader if the delta data is present, and the follower node will take care of handling original read and write
-        let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
-        //todo handle this res
-        match res {
-            Ok(_probe_response) => {
-                log::info!("successfully written to follower");
-                final_result = Some(probe);
-            }
-            Err(_err) => {
-                log::warn!("Err: follower down while writing");
-                Self::initiate_manual_re_balancing(&tx, follower_node.node_ref.host_name.clone()).await;
-                log::warn!("writing to delta in a leader partition");
-                let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
-                let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
-                match result {
-                    Ok(_probe_response) => {
-                        log::info!("successfully written delta to leader after re-balance");
-                        final_result = Some(probe.clone());
-                    }
-                    Err(_err) => {
-                        log::error!("Err: Should not reach here after follower re-balance");
-                    }
-                }
-            }
-        }
-        return final_result;
+        final_result
     }
 
     async fn initiate_manual_re_balancing(tx: &Sender<ThreadMessage>, hostname: String) {
