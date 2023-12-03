@@ -1,8 +1,9 @@
 use std::fmt;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration};
 
 use log::debug;
+use tokio::time::Instant;
 use tonic::{Code, Response, Status};
 use tonic::transport::Channel;
 
@@ -12,6 +13,7 @@ use crate::grpc::node_status::NodeStatus;
 use crate::grpc::service::probe_sync::{PartitionRequest, ProbePartition, ProbeProto, ReadProbeRequest, WriteProbeRequest, WriteProbeResponse};
 use crate::grpc::service::probe_sync::probe_sync_client::ProbeSyncClient;
 use crate::probe::probe::Probe;
+use crate::PROBE_SYNC_TIMEOUT;
 use crate::store::memory_store::MemoryStore;
 
 #[derive(Debug)]
@@ -26,6 +28,7 @@ impl fmt::Display for Node {
         write!(f, "{}", &self.node_ref)
     }
 }
+
 
 impl Node {
     pub fn node_status(&self) -> NodeStatus {
@@ -77,7 +80,7 @@ impl Node {
         }
         Self {
             node_ref:node_ref.clone(),
-            probe_store: NetworkNode::RemoteStore(ProbeSyncClient::new(get_channel(&node_ref.host_name, 500))),
+            probe_store: NetworkNode::RemoteStore(ProbeSyncClient::new(get_channel(&node_ref.host_name, PROBE_SYNC_TIMEOUT))),
         }
     }
 
@@ -162,7 +165,14 @@ impl Node {
             probe_id: probe_id.to_string(),
             is_leader,
         });
-        channel.read_probe(request).await
+        let start_time = Instant::now();
+        log::info!("Before calling grpc read {:?}",start_time);
+        let result = channel.read_probe(request).await;
+        let end_time = Instant::now();
+        log::info!("After calling grpc read {:?}",end_time);
+        let duration = end_time - start_time;
+        log::info!("Latency {:?}",duration);
+        return result;
     }
 
     pub(crate) async fn write_remote_store(mut channel: ProbeSyncClient<Channel>, partition_id: usize, is_leader: bool, probe: &Probe) -> Result<Response<WriteProbeResponse>, Status> {
@@ -172,7 +182,14 @@ impl Node {
             probe: Some(probe.clone().to_probe_data()),
             is_leader,
         });
-        channel.write_probe(request).await
+        let start_time = Instant::now();
+        log::info!("Before calling grpc write {:?}",start_time);
+        let result = channel.write_probe(request).await;
+        let end_time = Instant::now();
+        log::info!("After calling grpc write {:?}",end_time);
+        let duration = end_time - start_time;
+        log::info!("Latency {:?}",duration);
+        return result;
         //todo handle retry logic
     }
 }
