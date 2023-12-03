@@ -17,13 +17,14 @@ impl PartitionProto for ProtoPartitionService {
     async fn make_node_alive_not_serving(&self, request: Request<AnnounceAliveNotServingRequest>) -> Result<Response<Empty>, Status> {
         //todo
         let req_data = request.into_inner();
-        log::info!("Make alive and not serving host: {} : partitions {:?}", req_data.host_name, req_data.leader_partitions);
+        log::info!("Req Make alive and not serving host: {} : partitions {:?}", req_data.host_name, req_data.leader_partitions);
         self.partition_service.read().await.make_node_alive_and_not_serving(&req_data).await;
         Ok(Response::new(Empty {}))
     }
 
     async fn make_node_alive_serving(&self, request: Request<AnnounceAliveServingRequest>) -> Result<Response<Empty>, Status> {
         let req_data = request.into_inner();
+        log::info!("Req Make alive and serving host: {} : leader partitions {:?} follower partitions: {:?}", req_data.host_name, req_data.leader_partitions,req_data.follower_partitions);
         self.partition_service.read().await.make_node_alive_serving(&req_data).await;
         Ok(Response::new(Empty {}))
     }

@@ -1,6 +1,6 @@
 use std::sync::{Arc};
 use tokio::sync::{oneshot, RwLock as TrwLock};
-use log::{error, info};
+use log::{error, info, warn};
 use tokio::sync::mpsc::Sender;
 use warp::ws::Message;
 use crate::cluster::health_check_service::ThreadMessage;
@@ -61,26 +61,40 @@ impl PartitionManager {
                 Self::read_from_leader_first(&probe_id, leader_node, follower_node, partition_id, tx).await
             }
             NodeStatus::AliveNotServing => {
+                log::info!("Reading from follower as the leader is alive and not serving");
                 let result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
                 return match result {
                     Ok(val) => {
-                        log::info!("Read from store, {:?}", val);
                         val
                     }
                     Err(error) => {
-                        log::warn!("Error while getting data from follower when leader is alive and not serving {}", error);
-                        None
+                        log::error!("Error while getting data from follower when leader is alive and not serving, so reading from leader now {}", error);
+                        let result = leader_node.node.read_probe_from_store(partition_id, true, &probe_id).await;
+                        return match result {
+                            Ok(probe) => {
+                                log::info!("Read data: {:?}", probe);
+                                probe
+                            }
+                            Err(err) => {
+                                log::warn!("Leader went down while reading {}", err);
+                                None
+                            }
+                        }
                     }
                 };
             }
             NodeStatus::Dead => {
+                log::warn!("leader down while reading, reading from follower");
+                if leader_node.node.is_current_node(){
+                    log::error!("WARNING!!!!!!!!!, received request when current node is down");
+                }
                 let result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
                 return match result {
                     Ok(val) => {
                         val
                     }
                     Err(error) => {
-                        log::error!("Error while getting data from follower when leader is dead {}", error);
+                        log::error!("!!!!!!!!this should not happen {}", error);
                         None
                     }
                 };
@@ -97,7 +111,11 @@ impl PartitionManager {
                 probe
             }
             Err(err) => {
-                log::error!("Exception {}", err);
+                log::warn!("Leader went down while reading {}", err);
+                tx.send(ThreadMessage {
+                    hostname: leader_node.node.node_ref.host_name.clone(),
+                    response_sender: None,
+                }).await.expect("Err couldn't send leader down message via channel to health check ");
 
                 //todo explicitly tell the follower node to rebalance the partition by sending the dead node ip, then make the request to the follower to get the probe from partition
                 let fallback_result = follower_node.read_probe_from_store(partition_id, false, &probe_id).await;
@@ -105,11 +123,8 @@ impl PartitionManager {
                     Ok(fallback_probe) => {
                         return fallback_probe;
                     }
-                    Err(_) => {
-                        tx.send(ThreadMessage {
-                            hostname: leader_node.node.node_ref.host_name.clone(),
-                            response_sender: None,
-                        }).await.expect("Err couldn't send leader down message via channel to health check ");
+                    Err(err) => {
+                        log::error!("Couldn't read value from follower when leader went down, {}",err);
                         None
                     }
                 }

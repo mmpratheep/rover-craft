@@ -102,7 +102,10 @@ impl PartitionService {
     }
 
     fn print_leader(&self, log_text: &str) {
-        let leaders: Vec<String> = self.leader_nodes.iter().map(|it| it.read().unwrap().to_string()).collect();
+        let leaders: Vec<(String, Option<MemoryStore>)> = self.leader_nodes.iter().map(|it| {
+            let guard = it.read().unwrap();
+            (guard.to_string(), guard.delta_data.clone())
+        }).collect();
         log::info!("{} leaders: {:?}", log_text, leaders);
     }
 
@@ -168,7 +171,7 @@ impl PartitionService {
         self.print_leader("Before alive and serving,");
         self.print_follower("Before alive and serving,");
         let node_host_name = req_data.host_name.clone();
-        self.nodes.make_node_alive_and_not_serving(&node_host_name);
+        self.nodes.make_node_alive_and_serving(&node_host_name);
 
         for i in req_data.leader_partitions.clone() {
             self.leader_nodes[i as usize].write().unwrap().remove_delta_data();
@@ -215,12 +218,12 @@ impl PartitionService {
     }
 
     pub async fn handle_recovery(&self) {
+        let current_node = self.nodes.get_current_node().unwrap();
+        log::info!("making current node alive");
+        self.nodes.make_node_alive_and_serving(&current_node.host_name);
+
         for peer_node in self.nodes.get_peers() {
             let alive_peer_node = self.nodes.get_node(&peer_node.host_name).unwrap().clone();
-
-            let current_node = self.nodes.get_current_node().unwrap();
-            log::info!("making current node alive");
-            self.nodes.make_node_alive_and_serving(&current_node.host_name);
 
             let current_node_leader_partitions = self.get_leader_partition_ids(&current_node.host_name);
             log::info!("Announce alive and not serving, for partitions: {:?}", current_node_leader_partitions);
@@ -249,7 +252,7 @@ impl PartitionService {
 
             match result {
                 Ok(delta_data) => {
-                    log::info!("Received delta data, updating the partition");
+                    log::info!("Received delta data, updating the partition, {:?}", delta_data);
                     let leader = self.get_leader_node(partition_id.clone() as usize).await;
                     leader.update_with_delta_data(delta_data.into_inner());
                     log::info!("updated the partition");
