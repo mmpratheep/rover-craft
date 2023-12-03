@@ -36,7 +36,9 @@ static INITIAL_CLUSTER: &str = "initial-cluster";
 async fn main() {
     write_pid();
     let parsed_argument = parse_args(env::args());
-    env_logger::builder().filter_level(LevelFilter::Info).init();
+    env_logger::builder()
+        .format_timestamp_millis()
+        .filter_level(LevelFilter::Info).init();
     log::info!("Args : {:?}", parsed_argument);
     let listen_port = find_port(parsed_argument.get(LISTEN_CLIENT_URLS).or(Some(&"http://localhost:9000".to_string())).expect("Missing listen-client-urls"));
     let peer_port = find_port(parsed_argument.get(LISTEN_PEER_URLS).or(Some(&"http://localhost:9001".to_string())).expect("Missing listen-peer-urls"));
