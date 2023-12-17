@@ -106,7 +106,7 @@ impl Node {
                 Ok(store.get_probe(&probe_id))
             }
             NetworkNode::RemoteStore(remote_store) => {
-                log::info!("Starting Remote read call: ");
+                log::info!("Starting Remote read call: {}",probe_id);
                 let response = Self::read_remote_store(remote_store.clone(), partition_id, is_leader, probe_id).await;
                 Self::get_probe_from_response(response)
             }
@@ -116,18 +116,19 @@ impl Node {
     pub async fn write_probe_to_store(&self, partition_id: usize, is_leader: bool, probe: &Probe) -> Result<(), Status> {
         return match &self.probe_store {
             NetworkNode::LocalStore(store) => {
+                log::info!("Writing to local: {}",probe.event_id);
                 store.save_probe(&probe);
                 Ok(())
             }
             NetworkNode::RemoteStore(remote_store) => {
                 let response = Self::write_remote_store(remote_store.clone(), partition_id, is_leader, probe).await;
-                log::info!("Starting Remote write call");
+                log::info!("Starting Remote write call {}",probe.event_id);
                 match response {
                     Ok(_val) => {
                         Ok(())
                     }
                     Err(err) => {
-                        log::error!("{}", err);
+                        log::error!("Error: {} {}",probe.event_id, err);
                         Err(err)
                     }
                 }
@@ -166,12 +167,11 @@ impl Node {
             is_leader,
         });
         let start_time = Instant::now();
-        log::info!("Before calling grpc read {:?}",start_time);
+        log::info!("Before calling grpc read {} {:?}",probe_id,start_time);
         let result = channel.read_probe(request).await;
         let end_time = Instant::now();
-        log::info!("After calling grpc read {:?}",end_time);
         let duration = end_time - start_time;
-        log::info!("Latency {:?}",duration);
+        log::info!("Latency {} {:?}",probe_id,duration);
         return result;
     }
 
@@ -183,12 +183,11 @@ impl Node {
             is_leader,
         });
         let start_time = Instant::now();
-        log::info!("Before calling grpc write {:?}",start_time);
+        log::info!("Before calling grpc write {} {:?}",probe.event_id,start_time);
         let result = channel.write_probe(request).await;
         let end_time = Instant::now();
-        log::info!("After calling grpc write {:?}",end_time);
         let duration = end_time - start_time;
-        log::info!("Latency {:?}",duration);
+        log::info!("Latency {} {:?}",probe.event_id,duration);
         return result;
         //todo handle retry logic
     }
@@ -203,8 +202,6 @@ pub  fn get_channel(address: &String, time_out: u64) -> Channel {
         }
     }
         .timeout(Duration::from_millis(time_out))
-        .tcp_nodelay(true)
-        .tcp_keepalive(Some(Duration::from_secs(5)))
         .connect_timeout(Duration::from_millis(50))
         .connect_lazy()
 }

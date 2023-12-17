@@ -9,6 +9,7 @@ use crate::cluster::partition_service::PartitionService;
 use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
 use crate::grpc::node_status::NodeStatus;
+use crate::grpc::service::probe_sync::ProbeProto;
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
@@ -65,7 +66,6 @@ impl PartitionManager {
                 }
                 log::info!("returning from follower {}", probe_id);
                 Some(follower_probe)
-
             }
             (Some(leader_probe), None) => {
                 Some(leader_probe)
@@ -135,14 +135,14 @@ impl PartitionManager {
                 probe
             }
             Err(err) => {
-                log::warn!("Leader went down while reading {}", err);
+                log::warn!("Leader went down while reading {} {}", probe_id, err);
                 tx.send(ThreadMessage {
                     hostname: leader_node.node.node_ref.host_name.clone(),
                     response_sender: None,
                 }).await.expect("Err couldn't send leader down message via channel to read the data");
                 None
             }
-        }
+        };
     }
 
     async fn read_from_follower(probe_id: &String, follower_node: Arc<Node>, partition_id: usize, tx: Sender<ThreadMessage>) -> Option<Probe> {
@@ -151,7 +151,7 @@ impl PartitionManager {
         return match result {
             Ok(probe) => {
                 match probe {
-                    Some(value)  => {
+                    Some(value) => {
                         log::info!("Read data from follower: {}", value);
                         Some(value)
                     }
@@ -161,14 +161,14 @@ impl PartitionManager {
                 }
             }
             Err(err) => {
-                log::warn!("Follower went down while reading {}", err);
+                log::warn!("Follower went down while reading {} {}",probe_id, err);
                 tx.send(ThreadMessage {
                     hostname: follower_node.node_ref.host_name.clone(),
                     response_sender: None,
                 }).await.expect("Err couldn't send leader down message via channel to read the data");
                 None
             }
-        }
+        };
     }
 
     pub async fn upsert_value(&self, probe: Probe, tx: Sender<ThreadMessage>) -> Option<Probe> {
@@ -178,8 +178,9 @@ impl PartitionManager {
         //todo else read from the follower partition
         // log::info!("partition-service: {:?}", self.partition_service);
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
-        log::info!("write request {} -> {:?} ", partition_id, probe);
-        match join!(self.write_to_leader(&probe, &tx, leader_node, partition_id), self.write_to_follower(&probe, &tx, follower_node, partition_id)) {
+        log::info!("write request {} -> {:?} ", partition_id, probe.event_id);
+        match join!(self.write_to_leader(&probe, &tx, leader_node, partition_id),
+            self.write_to_follower(&probe, &tx, follower_node, partition_id)) {
             (Some(probe), Some(_)) => {
                 Some(probe)
             }
@@ -199,31 +200,35 @@ impl PartitionManager {
     async fn write_to_follower(&self, probe: &Probe, tx: &Sender<ThreadMessage>, follower_node: Arc<Node>, partition_id: usize) -> Option<Probe> {
 
         //you need to write to delta data in leader if the delta data is present, and the follower node will take care of handling original read and write
-        let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
-        //todo handle this res
-        match res {
-            Ok(_probe_response) => {
-                log::info!("successfully written to follower");
-                Some(probe.clone())
-            }
-            Err(_err) => {
-                log::warn!("Err: follower down while writing");
-                Self::initiate_manual_re_balancing(&tx, follower_node.node_ref.host_name.clone()).await;
-                log::warn!("writing to delta in a leader partition");
-                let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
-                let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
+        if follower_node.is_node_not_down() {
+            let res = follower_node.write_probe_to_store(partition_id, false, &probe).await;
+            //todo handle this res
+            match res {
+                Ok(_probe_response) => {
+                    log::info!("successfully written to follower {}", probe.event_id);
+                    Some(probe.clone())
+                }
+                Err(_err) => {
+                    log::warn!("Err: follower down while writing {}", probe.event_id);
+                    Self::initiate_manual_re_balancing(&tx, follower_node.node_ref.host_name.clone()).await;
+                    log::warn!("writing to delta in a leader partition");
+                    let (leader_node, follower_node, partition_id) = self.partition_service.read().await.get_partition_nodes(&probe.probe_id).await;
+                    let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
 
-                match result {
-                    Ok(_probe_response) => {
-                        log::info!("successfully written delta to leader after re-balance");
-                        Some(probe.clone())
-                    }
-                    Err(_err) => {
-                        log::error!("Err: Should not reach here after follower re-balance");
-                        None
+                    match result {
+                        Ok(_probe_response) => {
+                            log::info!("successfully written delta to leader after re-balance");
+                            Some(probe.clone())
+                        }
+                        Err(_err) => {
+                            log::error!("Err: Should not reach here after follower re-balance");
+                            None
+                        }
                     }
                 }
             }
+        } else {
+            None
         }
     }
 
@@ -232,10 +237,11 @@ impl PartitionManager {
         let mut final_result = None;
         match result {
             Ok(_probe_response) => {
-                log::info!("successfully written to leader");
+                log::info!("successfully written to leader {}", probe.event_id);
                 final_result = Some(probe.clone());
             }
             Err(_err) => {
+                log::warn!("Err: follower down while writing {}", probe.event_id);
                 //todo try to keep this creation in common place
                 Self::initiate_manual_re_balancing(&tx, leader_node.node.node_ref.host_name.clone()).await;
 
@@ -243,11 +249,11 @@ impl PartitionManager {
                 let result = leader_node.write_probe_to_store_and_delta(partition_id, &probe).await;
                 match result {
                     Ok(_probe_response) => {
-                        log::info!("successfully written to leader after re-balance");
+                        log::info!("successfully written to leader after re-balance, {}",probe.event_id);
                         final_result = Some(probe.clone());
                     }
                     Err(_err) => {
-                        log::error!("Err: Should not reach here after re-balance");
+                        log::error!("Err: Should not reach here after re-balance {}", probe.event_id);
                     }
                 }
             }
@@ -261,12 +267,12 @@ impl PartitionManager {
         tx.send(ThreadMessage { hostname, response_sender: Some(scheduler_response_sender) })
             .await.expect("Err couldn't send leader down message via channel to health check ");
 
-        log::warn!("Err: Leader down while writing");
+        log::warn!("Err: Node down while writing");
 
         scheduler_response_receiver.await.expect("unable to get the thread response");
     }
 
-    pub async fn get_delta_data(&self, partition_id: usize) -> Option<MemoryStore> {
+    pub async fn get_delta_data(&self, partition_id: usize) -> Vec<ProbeProto> {
         self.partition_service.read().await.get_leader_delta_data(partition_id)
     }
 }

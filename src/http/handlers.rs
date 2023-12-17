@@ -20,6 +20,7 @@ pub async fn update_probe(
     store: Arc<PartitionManager>,
     tx: Sender<ThreadMessage>
 ) -> Result<impl Reply, Rejection> {
+    log::info!("Write request: {}, event: {}", probe_id, probe_request.get_event_id());
     let probe = Probe::create_probe(probe_id, probe_request);
     //todo remove await here
     store.upsert_value(probe.clone(),tx).await;
@@ -32,6 +33,7 @@ pub async fn get_probe(
     store: Arc<PartitionManager>,
     tx: Sender<ThreadMessage>
 ) -> Result<impl Reply, Rejection> {
+    log::info!("Read request: {}", probe_id);
     let response = store.read_probe(probe_id, tx).await;
     match response {
         Some(value) => {

@@ -10,7 +10,7 @@ use tonic::transport::Channel;
 
 use crate::grpc::node::get_channel;
 use crate::grpc::node_status::NodeStatus;
-use crate::grpc::node_status::NodeStatus::Dead;
+use crate::grpc::node_status::NodeStatus::{AliveServing, Dead};
 use crate::grpc::service::cluster::{AnnounceAliveNotServingRequest, AnnounceAliveServingRequest, HealthCheckRequest};
 use crate::grpc::service::cluster::health_check_client::HealthCheckClient;
 use crate::grpc::service::cluster::partition_proto_client::PartitionProtoClient;
@@ -49,6 +49,9 @@ impl NodeRef {
     pub fn make_node_dead(&self) {
         *self.node_status.write().unwrap() = Dead;
     }
+    pub fn make_node_alive_and_serving(&self) {
+        *self.node_status.write().unwrap() = AliveServing;
+    }
 
     pub fn is_current_node(&self) -> bool {
         Self::is_same_node(&self.host_name)
@@ -63,13 +66,13 @@ impl NodeRef {
 
     pub async fn do_health_check(&self) -> Result<(), Status> {
         let start_time = Instant::now();
-        log::info!("Before calling grpc health check {:?}",start_time);
+        log::debug!("Before calling grpc health check {:?}",start_time);
         let response = self.health_check_client.clone()
             .health_check(HealthCheckRequest { ping: true }).await;
         let end_time = Instant::now();
-        log::info!("After calling grpc health check {:?}",end_time);
+        log::debug!("After calling grpc health check {:?}",end_time);
         let duration = end_time - start_time;
-        log::info!("Latency {:?}",duration);
+        log::debug!("Latency {:?}",duration);
 
         return match response {
             Ok(_val) => {

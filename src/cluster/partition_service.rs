@@ -7,6 +7,7 @@ use crate::grpc::node::Node;
 use crate::grpc::node_manager::NodeManager;
 use crate::grpc::node_ref::NodeRef;
 use crate::grpc::service::cluster::{AnnounceAliveNotServingRequest, AnnounceAliveServingRequest};
+use crate::grpc::service::probe_sync::ProbeProto;
 use crate::probe::probe::Probe;
 use crate::store::memory_store::MemoryStore;
 
@@ -24,6 +25,7 @@ impl PartitionService {
     pub fn new(nodes: NodeManager) -> Self {
         let (leaders, followers, partition_size) =
             Self::initialise_partitions(nodes.nodes.clone());
+        log::info!("leaders: {:?} \n followers: {:?}",leaders, followers);
         PartitionService {
             leader_nodes: leaders,
             follower_nodes: followers,
@@ -77,6 +79,7 @@ impl PartitionService {
             for node in &nodes {
                 assign_values_for_leader(replica, &mut leader_nodes, node.clone(), index);
                 let mut temp_nodes = clone_except_given_value(&nodes, &node);
+                log::info!("leader node: {}, temp nodes: {:?}", node,temp_nodes);
                 assign_values_for_replica(replica, &mut follower_nodes, &mut temp_nodes, index);
                 index += replica;
             }
@@ -84,8 +87,18 @@ impl PartitionService {
         return (leader_nodes, follower_nodes, partition_size);
     }
 
-    pub fn get_leader_delta_data(&self, partition_id: usize) -> Option<MemoryStore> {
-        return self.leader_nodes.get(partition_id).unwrap().read().unwrap().delta_data.clone();
+    pub fn get_leader_delta_data(&self, partition_id: usize) -> Vec<ProbeProto>{
+        let delta_data = &self.leader_nodes.get(partition_id).unwrap()
+            .read().unwrap().delta_data;
+        match delta_data {
+            None => {
+                log::error!("No delta data to return");
+                vec![]
+            }
+            Some(store) => {
+                store.serialise()
+            }
+        }
     }
 
     pub async fn get_partition_nodes(&self, probe_id: &String) -> (LeaderNode, Arc<Node>, usize) {
@@ -222,7 +235,9 @@ impl PartitionService {
         log::info!("making current node alive");
         self.nodes.make_node_alive_and_serving(&current_node.host_name);
 
-        for peer_node in self.nodes.get_peers() {
+        let peer_nodes = self.nodes.get_peers();
+        for peer_node in peer_nodes {
+            peer_node.make_node_alive_and_serving();
             let alive_peer_node = self.nodes.get_node(&peer_node.host_name).unwrap().clone();
 
             let current_node_leader_partitions = self.get_leader_partition_ids(&current_node.host_name);

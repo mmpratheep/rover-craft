@@ -19,7 +19,13 @@ impl MemoryStore {
     }
 
     pub fn save_probe(&self, probe: &Probe) {
-        self.probes.insert(probe.get_probe_id().to_string(), probe.clone());
+        self.probes.entry(probe.probe_id.clone())
+            .and_modify(|existing_entry| {
+                if probe.event_date_time > existing_entry.event_date_time {
+                    *existing_entry = probe.clone();
+                }
+            })
+            .or_insert(probe.clone());
     }
 
     pub fn get_probe(&self, probe_id: &String) -> Option<Probe> {

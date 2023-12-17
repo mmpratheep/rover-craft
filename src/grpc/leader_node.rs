@@ -28,11 +28,18 @@ impl LeaderNode {
     }
 
     pub fn write_to_delta(&self, probe: &Probe) {
-        self.delta_data.clone().unwrap().save_probe(probe);
+        match &self.delta_data {
+            None => {
+                log::error!("Not writing as delta data wasn't present, {}",probe.event_id);
+            }
+            Some(store) => {
+                store.save_probe(probe)
+            }
+        }
     }
     pub fn write_to_delta_if_exists(&self, probe: &Probe) {
         if self.delta_data.is_some() {
-            log::info!("Written to delta");
+            log::info!("Written to delta {}",probe.event_id);
             self.write_to_delta(probe);
         }
     }
