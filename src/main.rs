@@ -32,9 +32,9 @@ static LISTEN_PEER_URLS: &str = "listen-peer-urls";
 static LISTEN_CLIENT_URLS: &str = "listen-client-urls";
 static INITIAL_CLUSTER: &str = "initial-cluster";
 
-pub const ANNOUNCEMENT_TIMEOUT: u64 = 100;
-pub const HEALTH_CHECK_TIMEOUT: u64 = 50;
-const PROBE_SYNC_TIMEOUT: u64 = 100;
+pub const ANNOUNCEMENT_TIMEOUT: u64 = 150;
+pub const HEALTH_CHECK_TIMEOUT: u64 = 100;
+const PROBE_SYNC_TIMEOUT: u64 = 150;
 
 #[tokio::main]
 async fn main() {

@@ -49,6 +49,9 @@ impl PartitionManager {
     //     }
     // }
 
+    pub async fn is_current_node_down(&self) -> bool{
+        self.partition_service.read().await.is_current_node_dead()
+    }
 
     pub async fn read_probe(&self, probe_id: String, tx: Sender<ThreadMessage>) -> Option<Probe> {
         //todo clone
@@ -241,7 +244,7 @@ impl PartitionManager {
                 final_result = Some(probe.clone());
             }
             Err(_err) => {
-                log::warn!("Err: follower down while writing {}", probe.event_id);
+                log::warn!("Err: leader down while writing {}", probe.event_id);
                 //todo try to keep this creation in common place
                 Self::initiate_manual_re_balancing(&tx, leader_node.node.node_ref.host_name.clone()).await;
 

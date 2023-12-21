@@ -21,11 +21,15 @@ pub async fn update_probe(
     tx: Sender<ThreadMessage>
 ) -> Result<impl Reply, Rejection> {
     log::info!("Write request: {}, event: {}", probe_id, probe_request.get_event_id());
+    if store.is_current_node_down().await {
+        log::info!("Returned 500, since the current node is dead");
+        return Ok(with_status(json(&""), StatusCode::INTERNAL_SERVER_ERROR));
+    }
     let probe = Probe::create_probe(probe_id, probe_request);
     //todo remove await here
     store.upsert_value(probe.clone(),tx).await;
 
-    Ok(json(&probe))
+    Ok(with_status(json(&probe),StatusCode::OK))
 }
 
 pub async fn get_probe(
@@ -34,6 +38,10 @@ pub async fn get_probe(
     tx: Sender<ThreadMessage>
 ) -> Result<impl Reply, Rejection> {
     log::info!("Read request: {}", probe_id);
+    if store.is_current_node_down().await {
+        log::info!("Returned 500, since the current node is dead");
+        return Ok(with_status(json(&""), StatusCode::INTERNAL_SERVER_ERROR));
+    }
     let response = store.read_probe(probe_id, tx).await;
     match response {
         Some(value) => {

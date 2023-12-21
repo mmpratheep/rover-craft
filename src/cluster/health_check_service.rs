@@ -111,7 +111,7 @@ impl HealthCheckService {
             log::info!("Seems like node is down");
             if partition_service.read().await.is_current_node_down() {
                 log::info!("Marking current node down");
-                *interval = tokio::time::interval(Duration::from_millis(50));
+                *interval = tokio::time::interval(Duration::from_millis(10));
                 let partition_service_read_guard = partition_service.read().await;
                 partition_service_read_guard.make_node_dead(&partition_service_read_guard.current_node().host_name);
             } else {
