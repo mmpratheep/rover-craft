@@ -28,9 +28,15 @@ pub async fn update_probe(
     }
     let probe = Probe::create_probe(probe_id, probe_request);
     //todo remove await here
-    store.upsert_value(probe.clone(),tx).await;
+    match store.upsert_value(probe.clone(),tx).await{
+        None => {
+            Ok(with_status(json(&""), StatusCode::INTERNAL_SERVER_ERROR))
+        }
+        Some(probe) => {
+            Ok(with_status(json(&probe),StatusCode::OK))
+        }
+    }
 
-    Ok(with_status(json(&probe),StatusCode::OK))
 }
 
 pub async fn get_probe(

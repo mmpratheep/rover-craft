@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
 
 use crate::cluster::hash::hash;
@@ -20,11 +21,13 @@ pub(crate) struct PartitionService {
     follower_nodes: Vec<RwLock<Arc<Node>>>,
     partition_size: usize,
     nodes: NodeManager,
+    default_leader_arrangement: Vec<Arc<NodeRef>>,
+    is_normal_state: AtomicBool
 }
 
 impl PartitionService {
     pub fn new(nodes: NodeManager) -> Self {
-        let (leaders, followers, partition_size) =
+        let (leaders, followers, default_leader_arrangement, partition_size) =
             Self::initialise_partitions(nodes.nodes.clone());
         log::info!("leaders: {:?} \n followers: {:?}",leaders, followers);
         PartitionService {
@@ -32,6 +35,8 @@ impl PartitionService {
             follower_nodes: followers,
             partition_size,
             nodes,
+            default_leader_arrangement,
+            is_normal_state: AtomicBool::new(true)
         }
     }
 
@@ -69,15 +74,17 @@ impl PartitionService {
         return followers_ref.clone();
     }
 
-    pub fn initialise_partitions(mut nodes: Vec<Arc<NodeRef>>) -> (Vec<RwLock<LeaderNode>>, Vec<RwLock<Arc<Node>>>, usize) {
+    pub fn initialise_partitions(mut nodes: Vec<Arc<NodeRef>>) -> (Vec<RwLock<LeaderNode>>, Vec<RwLock<Arc<Node>>>, Vec<Arc<NodeRef>>, usize) {
         //distributes partition evenly across nodes with replication factor n-1
         let replica = nodes.len() - 1;
         let partition_size = nodes.len() * replica;
         let mut leader_nodes: Vec<RwLock<LeaderNode>> = Vec::with_capacity(partition_size);
         let mut follower_nodes: Vec<RwLock<Arc<Node>>> = Vec::with_capacity(partition_size);
+        let mut default_leader_arrangement = Vec::with_capacity(partition_size);
         if replica < nodes.len() {
             let mut index: usize = 0;
             for node in &nodes {
+                assign_default_leader_partition_arrangements(replica,&mut default_leader_arrangement, node.clone(),index);
                 assign_values_for_leader(replica, &mut leader_nodes, node.clone(), index);
                 let mut temp_nodes = clone_except_given_value(&nodes, &node);
                 log::info!("leader node: {}, temp nodes: {:?}", node,temp_nodes);
@@ -85,8 +92,9 @@ impl PartitionService {
                 index += replica;
             }
         }
-        return (leader_nodes, follower_nodes, partition_size);
+        return (leader_nodes, follower_nodes,default_leader_arrangement, partition_size);
     }
+
 
     pub fn get_leader_delta_data(&self, partition_id: usize) -> Vec<ProbeProto>{
         let delta_data = &self.leader_nodes.get(partition_id).unwrap()
@@ -110,6 +118,8 @@ impl PartitionService {
 
         let leader_ref = self.leader_nodes.get(partition_id).expect("No leader to get").read().unwrap();
         let follower_ref = self.follower_nodes.get(partition_id).expect("No follower to get").read().unwrap();
+        log::info!("leader node: {}", leader_ref);
+        log::info!("follower node: {}", follower_ref);
 
         // Release the locks here, ensuring that the references are valid
         (leader_ref.clone(), follower_ref.clone(), partition_id)
@@ -155,6 +165,8 @@ impl PartitionService {
                 }
             }
         }
+        self.is_normal_state.store(false, Ordering::SeqCst);
+        log::info!("Updated the arrangement state to {:?}",self.is_normal_state);
         self.print_leader("After rebalance:");
         self.print_follower("After rebalance:");
     }
@@ -163,21 +175,25 @@ impl PartitionService {
         self.print_leader("Before alive and not serving,");
         self.print_follower("Before alive and not serving,");
         let node_host_name = req_data.host_name.clone();
-        self.nodes.make_node_alive_and_not_serving(&node_host_name);
-        for i in req_data.leader_partitions.clone() {
-            let index = i as usize;
-            //todo imp I think we can skip this
-            let mut follower_node = self.follower_nodes[index].write().unwrap();
-            *follower_node = self.leader_nodes[index].read().unwrap().node.clone();
-            drop(follower_node);
-            //when node is back, we need to keep the delta data there in the leader, and move the data to the follower and create connection to from leader partition
-            self.leader_nodes[index].write().unwrap().node = Arc::new(Node::new(
-                self.nodes.get_node(&node_host_name).unwrap()));
-            //todo check whether it handles properly for the second node assignment
-        }
+        if self.nodes.make_node_alive_and_not_serving(&node_host_name){
+            for i in req_data.leader_partitions.clone() {
+                let index = i as usize;
+                //todo imp I think we can skip this
+                let mut follower_node = self.follower_nodes[index].write().unwrap();
+                *follower_node = self.leader_nodes[index].read().unwrap().node.clone();
+                drop(follower_node);
+                //when node is back, we need to keep the delta data there in the leader, and move the data to the follower and create connection to from leader partition
+                self.leader_nodes[index].write().unwrap().node = Arc::new(Node::new(
+                    self.nodes.get_node(&node_host_name).unwrap()));
+                //todo check whether it handles properly for the second node assignment
+            }
 
-        self.print_leader("After alive and not serving,");
-        self.print_follower("After alive and not serving,");
+            self.print_leader("After alive and not serving,");
+            self.print_follower("After alive and not serving,");
+        }
+        else{
+            log::info!("Haven't rebalanced since the node was already in the serving state, must be a false alarm")
+        }
     }
 
 
@@ -185,17 +201,22 @@ impl PartitionService {
         self.print_leader("Before alive and serving,");
         self.print_follower("Before alive and serving,");
         let node_host_name = req_data.host_name.clone();
-        self.nodes.make_node_alive_and_serving(&node_host_name);
+        if self.nodes.make_node_alive_and_serving(&node_host_name){
+            for i in req_data.leader_partitions.clone() {
+                self.leader_nodes[i as usize].write().unwrap().remove_delta_data();
+            }
 
-        for i in req_data.leader_partitions.clone() {
-            self.leader_nodes[i as usize].write().unwrap().remove_delta_data();
+            for i in req_data.follower_partitions.clone() {
+                self.leader_nodes[i as usize].write().unwrap().remove_delta_data()
+            }
+            self.is_normal_state.store(true, Ordering::SeqCst);
+            log::info!("Updated the arrangement state to {:?}",self.is_normal_state);
+            self.print_leader("After alive and serving,");
+            self.print_follower("After alive and serving,");
         }
-
-        for i in req_data.follower_partitions.clone() {
-            self.leader_nodes[i as usize].write().unwrap().remove_delta_data()
+        else{
+            log::info!("Haven't removed the delta data since the node was already in the same state, must be a false alarm")
         }
-        self.print_leader("After alive and serving,");
-        self.print_follower("After alive and serving,");
     }
 
     pub(crate) async fn get_peers(&self) -> Vec<&Arc<NodeRef>> {
@@ -332,3 +353,9 @@ fn assign_values_for_leader(replica: usize, leader_nodes: &mut Vec<RwLock<Leader
     }
 }
 
+fn assign_default_leader_partition_arrangements(replica: usize, leader_nodes: &mut Vec<Arc<NodeRef>>, node: Arc<NodeRef>, mut current_index: usize) {
+    for _ in 0..replica {
+        leader_nodes.insert(current_index, node.clone());
+        current_index += 1;
+    }
+}

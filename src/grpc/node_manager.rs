@@ -29,8 +29,12 @@ impl NodeManager {
         self.nodes.sort_by(|a, b| a.host_name.cmp(&b.host_name));
     }
 
-    pub fn make_node_alive_and_serving(&self, node_host: &String) {
-        self.change_node_state(node_host, NodeStatus::AliveServing);
+    pub fn make_node_alive_and_serving(&self, node_host: &String) -> bool{
+        let node = self.get_single_node(node_host);
+        if *node.unwrap().node_status.read().unwrap().deref() == NodeStatus::AliveServing {
+            return false;
+        }
+        self.change_node_state(node, NodeStatus::AliveServing)
     }
 
     pub fn is_current_node_down(&self) -> bool {
@@ -38,21 +42,26 @@ impl NodeManager {
             .all(|node| *node.node_status.read().unwrap().deref() == NodeStatus::Dead)
     }
 
-    pub fn make_node_dead(&self, node_host: &String) {
-        self.change_node_state(node_host, NodeStatus::Dead);
-    }
-
-    pub fn make_node_alive_and_not_serving(&self, node_host: &String) {
-        self.change_node_state(node_host, NodeStatus::AliveNotServing);
-    }
-
-    fn change_node_state(&self, node_host: &String, status: NodeStatus) {
+    pub fn make_node_dead(&self, node_host: &String){
         let node = self.get_single_node(node_host);
+        self.change_node_state(node, NodeStatus::Dead);
+    }
+
+    pub fn make_node_alive_and_not_serving(&self, node_host: &String) -> bool{
+        let node = self.get_single_node(node_host);
+        if *node.unwrap().node_status.read().unwrap().deref() == NodeStatus::AliveServing {
+            return false;
+        }
+        self.change_node_state(node, NodeStatus::AliveNotServing)
+    }
+
+    fn change_node_state(&self, node: Option<&Arc<NodeRef>>, status: NodeStatus) -> bool{
         let mut guard = node.unwrap().node_status.write().unwrap();
         *guard = status;
         //todo remove below while taking to prod
         drop(guard);
-        log::info!("After state change host: {}, status: {:?}", node.unwrap().host_name, node.unwrap().node_status.read())
+        log::info!("After state change host: {}, status: {:?}", node.unwrap().host_name, node.unwrap().node_status.read());
+        return true;
     }
 
     pub fn get_node(&self, node_host: &String) -> Option<Arc<NodeRef>> {
