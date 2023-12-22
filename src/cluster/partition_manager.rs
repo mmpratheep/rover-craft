@@ -67,7 +67,7 @@ impl PartitionManager {
             Self::read_from_follower(&probe_id, follower_node, partition_id, tx.clone())
         ) {
             (Some(leader_probe), Some(follower_probe)) => {
-                if leader_probe.event_date_time >= follower_probe.event_date_time {
+                if leader_probe.event_received_time >= follower_probe.event_received_time {
                     log::info!("returning from leader {}", probe_id);
                     return Some(leader_probe);
                 }

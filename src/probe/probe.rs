@@ -14,7 +14,7 @@ use crate::http;
 pub struct Probe {
     pub(crate) probe_id: String,
     pub(crate) event_id: String,
-    pub(crate) event_date_time: u64,
+    pub(crate) event_received_time: u64,
     pub(crate) data: String,
 }
 
@@ -26,7 +26,7 @@ impl Hash for Probe {
 
 impl fmt::Display for Probe {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{},{},{}", &self.probe_id, self.event_id, self.event_date_time)
+        write!(f, "{},{},{}", &self.probe_id, self.event_id, self.event_received_time)
     }
 }
 
@@ -43,7 +43,7 @@ impl Probe {
         Probe {
             probe_id,
             event_id: probe_request.get_event_id().to_string(),
-            event_date_time,
+            event_received_time: event_date_time,
             data: probe_request.get_data().to_string(),
         }
     }
@@ -52,7 +52,7 @@ impl Probe {
         Probe {
             probe_id: probe_request.probe_id,
             event_id: probe_request.event_id,
-            event_date_time: probe_request.event_date_time,
+            event_received_time: probe_request.event_date_time,
             data: probe_request.data,
         }
     }
@@ -61,7 +61,7 @@ impl Probe {
         ProbeProto {
             probe_id: self.probe_id,
             data: self.data,
-            event_date_time: self.event_date_time,
+            event_date_time: self.event_received_time,
             event_id: self.event_id
         }
     }

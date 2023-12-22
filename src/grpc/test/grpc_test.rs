@@ -19,7 +19,7 @@ mod tests {
         let result = node.write_probe_to_store(0,true,&Probe {
             probe_id: "id2".to_string(),
             event_id: "9707d6a1-61b5-11ec-9f10-0800200c9a62".to_string(),
-            event_date_time: 1699082509235,
+            event_received_time: 1699082509235,
             data: "some random data".to_string(),
         }).await;
         let response = result.unwrap();

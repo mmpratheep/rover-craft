@@ -20,7 +20,7 @@ impl MemoryStore {
     pub fn save_probe(&self, probe: &Probe) {
         self.probes.entry(probe.probe_id.clone())
             .and_modify(|existing_entry| {
-                if probe.event_date_time > existing_entry.event_date_time {
+                if probe.event_received_time > existing_entry.event_received_time {
                     *existing_entry = probe.clone();
                 }
             })
@@ -45,7 +45,7 @@ impl MemoryStore {
             let probe = Probe::from_probe_proto(data);
             self.probes.entry(probe.probe_id.clone())
                 .and_modify(|existing_entry| {
-                    if probe.event_date_time > existing_entry.event_date_time {
+                    if probe.event_received_time > existing_entry.event_received_time {
                         *existing_entry = probe.clone();
                     }
                 })
