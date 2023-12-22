@@ -192,10 +192,10 @@ impl PartitionManager {
                 Some(probe)
             }
             (Some(probe), None) => {
-                Some(probe)
+                None
             }
             (None, Some(probe)) => {
-                Some(probe)
+                None
             }
 
             (None, None) => {
@@ -235,7 +235,7 @@ impl PartitionManager {
                 }
             }
         } else {
-            None
+            Some(probe.clone())
         }
     }
 

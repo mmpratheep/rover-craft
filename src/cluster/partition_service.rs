@@ -224,6 +224,26 @@ impl PartitionService {
     }
 
     pub(crate) fn make_node_dead(&self, node_host: &String) {
+        if !self.is_normal_state.load(Ordering::SeqCst){
+            log::info!("Unfortunately the partitions are already rebalanced.., so fixing it back");
+            self.print_leader("Before fix");
+            self.print_follower("Before fix");
+            for i in 0..self.default_leader_arrangement.len(){
+                if (self.leader_nodes.get(i).unwrap().read().unwrap().node.node_ref.host_name != self.default_leader_arrangement.get(i).unwrap().host_name){
+                    let mut follower_node = self.follower_nodes[i].write().unwrap();
+                    *follower_node = self.leader_nodes[i].read().unwrap().node.clone();
+                    drop(follower_node);
+                    let mut leader_write_guard = self.leader_nodes[i].write().unwrap();
+                    leader_write_guard.node = Arc::new(Node::new(
+                        self.nodes.get_node(&self.default_leader_arrangement.get(i).unwrap().host_name).unwrap()));
+                    leader_write_guard.remove_delta_data();
+                    drop(leader_write_guard);
+                }
+            }
+            self.print_leader("After fix");
+            self.print_follower("After fix");
+
+        }
         self.nodes.make_node_dead(node_host)
     }
 
