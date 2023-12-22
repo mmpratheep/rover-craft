@@ -6,6 +6,7 @@ use crate::grpc::leader_node::LeaderNode;
 use crate::grpc::node::Node;
 use crate::grpc::node_manager::NodeManager;
 use crate::grpc::node_ref::NodeRef;
+use crate::grpc::node_status::NodeStatus;
 use crate::grpc::service::cluster::{AnnounceAliveNotServingRequest, AnnounceAliveServingRequest};
 use crate::grpc::service::probe_sync::ProbeProto;
 use crate::probe::probe::Probe;
@@ -214,6 +215,10 @@ impl PartitionService {
         self.nodes.get_current_node().unwrap().is_dead()
     }
 
+    pub(crate) fn is_current_node_not_serving(&self) -> bool {
+        self.nodes.get_current_node().unwrap().is_not_serving()
+    }
+
     pub(crate) fn is_current_node_down(&self) -> bool {
         self.nodes.is_current_node_down()
     }
@@ -233,7 +238,7 @@ impl PartitionService {
     pub async fn handle_recovery(&self) {
         let current_node = self.nodes.get_current_node().unwrap();
         log::info!("making current node alive");
-        self.nodes.make_node_alive_and_serving(&current_node.host_name);
+        self.nodes.make_node_alive_and_not_serving(&current_node.host_name);
 
         let peer_nodes = self.nodes.get_peers();
         for peer_node in peer_nodes {
@@ -248,7 +253,8 @@ impl PartitionService {
         log::info!("Handling recovery");
         self.recover_current_node().await;
         log::info!("Announce alive and serving");
-        self.announce_alive_and_serving().await
+        self.announce_alive_and_serving().await;
+        self.nodes.make_node_alive_and_serving(&current_node.host_name);
     }
 
     pub async fn recover_current_node(&self) {

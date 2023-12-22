@@ -46,6 +46,9 @@ impl NodeRef {
     pub fn is_dead(&self) -> bool {
         *self.node_status.read().unwrap().deref() == Dead
     }
+    pub fn is_not_serving(&self) -> bool {
+        *self.node_status.read().unwrap().deref() != AliveServing
+    }
     pub fn make_node_dead(&self) {
         *self.node_status.write().unwrap() = Dead;
     }

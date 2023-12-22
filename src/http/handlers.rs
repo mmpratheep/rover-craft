@@ -5,6 +5,7 @@ use warp::http::StatusCode;
 use warp::reply::{json, with_status};
 use crate::cluster::health_check_service::ThreadMessage;
 use crate::cluster::partition_manager::PartitionManager;
+use crate::grpc::node_status::NodeStatus;
 
 use crate::http::probe_request::ProbeRequest;
 use crate::probe::probe::Probe;
@@ -21,7 +22,7 @@ pub async fn update_probe(
     tx: Sender<ThreadMessage>
 ) -> Result<impl Reply, Rejection> {
     log::info!("Write request: {}, event: {}", probe_id, probe_request.get_event_id());
-    if store.is_current_node_down().await {
+    if store.is_current_node_not_serving().await {
         log::info!("Returned 500, since the current node is dead");
         return Ok(with_status(json(&""), StatusCode::INTERNAL_SERVER_ERROR));
     }
@@ -38,7 +39,7 @@ pub async fn get_probe(
     tx: Sender<ThreadMessage>
 ) -> Result<impl Reply, Rejection> {
     log::info!("Read request: {}", probe_id);
-    if store.is_current_node_down().await {
+    if store.is_current_node_not_serving().await {
         log::info!("Returned 500, since the current node is dead");
         return Ok(with_status(json(&""), StatusCode::INTERNAL_SERVER_ERROR));
     }

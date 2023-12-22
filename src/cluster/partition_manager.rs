@@ -53,6 +53,10 @@ impl PartitionManager {
         self.partition_service.read().await.is_current_node_dead()
     }
 
+    pub async fn is_current_node_not_serving(&self) -> bool {
+        self.partition_service.read().await.is_current_node_not_serving()
+    }
+
     pub async fn read_probe(&self, probe_id: String, tx: Sender<ThreadMessage>) -> Option<Probe> {
         //todo clone
         let (leader_node, follower_node, partition_id) = self.partition_service.read().await
