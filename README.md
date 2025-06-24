@@ -1,6 +1,6 @@
 # bigo-rover-craft
 
-This repository contains the codebase for Team Craft's rover application.
+This repository contains the codebase for Team Craft's rover application built as part of the internal hackathon.
 
 ## Project Overview
 
